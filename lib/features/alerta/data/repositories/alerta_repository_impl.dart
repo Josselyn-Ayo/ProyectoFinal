@@ -27,6 +27,10 @@ class AlertaRepositoryImpl implements AlertaRepository {
     required String creadorId,
     bool? programada,
     DateTime? fechaProgramada,
+    String tipo = 'informativa',
+    String audiencia = 'todos',
+    String? facultadObjetivo,
+    bool activa = true,
   }) async {
     try {
       final model = AlertaModel(
@@ -36,6 +40,10 @@ class AlertaRepositoryImpl implements AlertaRepository {
         programada: programada ?? false,
         fechaProgramada: fechaProgramada,
         fecha: DateTime.now(),
+        tipo: tipo,
+        audiencia: audiencia,
+        facultadObjetivo: facultadObjetivo,
+        activa: activa,
       );
       return await remoteDataSource.crearAlerta(model);
     } on ServerException {
@@ -52,6 +60,10 @@ class AlertaRepositoryImpl implements AlertaRepository {
     required String mensaje,
     bool? programada,
     DateTime? fechaProgramada,
+    String tipo = 'informativa',
+    String audiencia = 'todos',
+    String? facultadObjetivo,
+    bool activa = true,
   }) async {
     try {
       final model = AlertaModel(
@@ -59,6 +71,10 @@ class AlertaRepositoryImpl implements AlertaRepository {
         mensaje: mensaje,
         programada: programada ?? false,
         fechaProgramada: fechaProgramada,
+        tipo: tipo,
+        audiencia: audiencia,
+        facultadObjetivo: facultadObjetivo,
+        activa: activa,
       );
       return await remoteDataSource.editarAlerta(id, model);
     } on ServerException {

@@ -4,7 +4,11 @@ import '../models/user_model.dart';
 
 abstract class AuthRemoteDataSource {
   Future<UserModel> signInWithPassword(String email, String password);
-  Future<void> signUp(String email, String password, Map<String, dynamic> userData);
+  Future<void> signUp(
+    String email,
+    String password,
+    Map<String, dynamic> userData,
+  );
   Future<void> signOut();
   Future<UserModel?> getCurrentUser();
   Future<UserModel> getUserById(String id);
@@ -34,10 +38,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         password: password,
       );
 
-      final userId = authResponse.user?.id;
+      final authUser = authResponse.user;
+      final userId = authUser?.id;
       if (userId == null) {
-        throw AppAuthException('Error al iniciar sesión');
+        throw AppAuthException('Error al iniciar sesion');
       }
+
+      await _ensureProfileExists(
+        authUser,
+        fallbackData: {'correo': email},
+      );
 
       return await getUserById(userId);
     } on AppAuthException {
@@ -49,14 +59,27 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<void> signUp(
-      String email, String password, Map<String, dynamic> userData) async {
+    String email,
+    String password,
+    Map<String, dynamic> userData,
+  ) async {
     try {
       final authResponse = await client.auth.signUp(
         email: email,
         password: password,
+        data: {
+          'nombre': userData['nombre'],
+          'apellido': userData['apellido'],
+          'rol': userData['rol'],
+          'telefono': userData['telefono'],
+          'facultad': userData['facultad'],
+          'carrera': userData['carrera'],
+          'contacto_emergencia': userData['contacto_emergencia'],
+        },
       );
 
-      final userId = authResponse.user?.id;
+      final authUser = authResponse.user;
+      final userId = authUser?.id;
       if (userId == null) {
         throw AppAuthException('Error al registrar usuario');
       }
@@ -64,7 +87,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       userData['id'] = userId;
       userData['correo'] = email;
 
-      await client.from('usuarios').insert(userData);
+      await _ensureProfileExists(authUser, fallbackData: userData);
     } catch (e) {
       throw AppAuthException(_extractErrorMessage(e));
     }
@@ -84,6 +107,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     try {
       final authUser = client.auth.currentUser;
       if (authUser == null) return null;
+
+      await _ensureProfileExists(authUser);
       return await getUserById(authUser.id);
     } on ServerException {
       return null;
@@ -95,11 +120,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<UserModel> getUserById(String id) async {
     try {
-      final response = await client
-          .from('usuarios')
-          .select()
-          .eq('id', id)
-          .single();
+      final response = await client.from('usuarios').select().eq('id', id).single();
 
       return UserModel.fromJson(response);
     } on PostgrestException catch (e) {
@@ -146,5 +167,67 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     if (error is PostgrestException) return error.message;
     if (error is AuthException) return error.message;
     return error.toString();
+  }
+
+  Future<void> _ensureProfileExists(
+    User? authUser, {
+    Map<String, dynamic>? fallbackData,
+  }) async {
+    if (authUser == null) return;
+
+    try {
+      final existingProfile = await client
+          .from('usuarios')
+          .select('id')
+          .eq('id', authUser.id)
+          .maybeSingle();
+
+      if (existingProfile != null) return;
+    } on PostgrestException catch (e) {
+      throw AppAuthException(_extractErrorMessage(e));
+    }
+
+    final profileData = _buildProfileData(authUser, fallbackData);
+
+    try {
+      await client.from('usuarios').upsert(profileData);
+    } on PostgrestException catch (e) {
+      throw AppAuthException(
+        'No se pudo crear el perfil del usuario en la tabla usuarios. '
+        'Revisa las politicas RLS de Supabase. Detalle: ${e.message}',
+      );
+    }
+  }
+
+  Map<String, dynamic> _buildProfileData(
+    User authUser,
+    Map<String, dynamic>? fallbackData,
+  ) {
+    final metadata = authUser.userMetadata ?? <String, dynamic>{};
+    final email = authUser.email ?? (fallbackData?['correo'] as String?) ?? '';
+    final emailPrefix = email.contains('@') ? email.split('@').first : email;
+
+    final rawNombre =
+        fallbackData?['nombre'] ?? metadata['nombre'] ?? metadata['full_name'];
+    final rawApellido = fallbackData?['apellido'] ?? metadata['apellido'];
+
+    final nombre = (rawNombre?.toString().trim().isNotEmpty ?? false)
+        ? rawNombre.toString().trim()
+        : (emailPrefix.isNotEmpty ? emailPrefix : 'Usuario');
+
+    final apellido = rawApellido?.toString().trim() ?? '';
+
+    return {
+      'id': authUser.id,
+      'nombre': nombre,
+      'apellido': apellido,
+      'correo': email,
+      'telefono': fallbackData?['telefono'] ?? metadata['telefono'],
+      'rol': fallbackData?['rol'] ?? metadata['rol'] ?? 'estudiante',
+      'facultad': fallbackData?['facultad'] ?? metadata['facultad'],
+      'carrera': fallbackData?['carrera'] ?? metadata['carrera'],
+      'contacto_emergencia':
+          fallbackData?['contacto_emergencia'] ?? metadata['contacto_emergencia'],
+    };
   }
 }

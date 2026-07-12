@@ -203,7 +203,7 @@ class _GuardiaFormDialogState extends State<_GuardiaFormDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _estado,
+                initialValue: _estado,
                 decoration: const InputDecoration(labelText: 'Estado'),
                 items: const [
                   DropdownMenuItem(value: 'Disponible', child: Text('Disponible')),

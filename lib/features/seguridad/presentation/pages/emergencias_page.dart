@@ -81,7 +81,7 @@ class _EmergenciasPageState extends State<EmergenciasPage>
                       fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                Text(incidente.usuarioNombre ?? 'Usuario',
+                Text(incidente.anonimo ? 'Anonimo' : incidente.usuarioNombre ?? 'Usuario',
                     style: const TextStyle(fontSize: 16)),
                 if (incidente.descripcion != null) ...[
                   const SizedBox(height: 4),
@@ -91,10 +91,23 @@ class _EmergenciasPageState extends State<EmergenciasPage>
                 const SizedBox(height: 16),
                 if (incidente.estado == 'Reportado')
                   ElevatedButton.icon(
-                    onPressed: () {
-                      incidenteProvider.actualizarEstado(
-                          incidente.id, 'Guardia asignado');
-                      Navigator.pop(ctx);
+                    onPressed: miGuardia == null
+                        ? null
+                        : () async {
+                      await incidenteProvider.actualizarEstado(
+                        incidente.id,
+                        'Guardia asignado',
+                        guardiaId: miGuardia.id,
+                      );
+                      if (miGuardia.id != null) {
+                        await guardiaProvider.actualizarEstado(
+                          guardiaId: miGuardia.id!,
+                          estado: 'Ocupado',
+                        );
+                      }
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                      }
                     },
                     icon: const Icon(Icons.check_circle),
                     label: const Text('Aceptar Caso'),
@@ -103,10 +116,15 @@ class _EmergenciasPageState extends State<EmergenciasPage>
                   ),
                 if (incidente.estado == 'Guardia asignado' && esMiCaso)
                   ElevatedButton.icon(
-                    onPressed: () {
-                      incidenteProvider.actualizarEstado(
-                          incidente.id, 'En camino');
-                      Navigator.pop(ctx);
+                    onPressed: () async {
+                      await incidenteProvider.actualizarEstado(
+                        incidente.id,
+                        'En camino',
+                        guardiaId: miGuardia?.id,
+                      );
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                      }
                     },
                     icon: const Icon(Icons.directions_walk),
                     label: const Text('En camino'),
@@ -115,10 +133,15 @@ class _EmergenciasPageState extends State<EmergenciasPage>
                   ),
                 if (incidente.estado == 'En camino' && esMiCaso)
                   ElevatedButton.icon(
-                    onPressed: () {
-                      incidenteProvider.actualizarEstado(
-                          incidente.id, 'Atendido');
-                      Navigator.pop(ctx);
+                    onPressed: () async {
+                      await incidenteProvider.actualizarEstado(
+                        incidente.id,
+                        'Atendido',
+                        guardiaId: miGuardia?.id,
+                      );
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                      }
                     },
                     icon: const Icon(Icons.check_circle_outline),
                     label: const Text('Atendido'),
@@ -193,11 +216,28 @@ class _EmergenciasPageState extends State<EmergenciasPage>
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
+                final guardiaProvider = context.read<GuardiaProvider>();
+                final miGuardia = guardiaProvider.miGuardia;
                 context
                     .read<IncidenteProvider>()
-                    .actualizarEstado(incidente.id, 'Cerrado');
-                Navigator.pop(ctx);
+                    .actualizarEstado(
+                      incidente.id,
+                      'Cerrado',
+                      guardiaId: miGuardia?.id,
+                      respuesta: respuestaCtrl.text.trim().isEmpty
+                          ? null
+                          : respuestaCtrl.text.trim(),
+                    );
+                if (miGuardia?.id != null) {
+                  await guardiaProvider.actualizarEstado(
+                    guardiaId: miGuardia!.id!,
+                    estado: 'Disponible',
+                  );
+                }
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                }
               },
               child: const Text('Cerrar caso'),
             ),
@@ -220,7 +260,7 @@ class _EmergenciasPageState extends State<EmergenciasPage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (incidente.usuarioNombre != null)
-              Text(incidente.usuarioNombre!),
+              Text(incidente.anonimo ? 'Anonimo' : incidente.usuarioNombre!),
             Text(_formatDate(incidente.fecha)),
           ],
         ),

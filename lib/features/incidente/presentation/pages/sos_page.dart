@@ -1,8 +1,10 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../core/config/theme.dart';
 import '../providers/incidente_provider.dart';
 
@@ -17,17 +19,19 @@ class SosPage extends StatefulWidget {
 
 class _SosPageState extends State<SosPage> {
   final _descripcionController = TextEditingController();
+  final _ubicacionReferenciaController = TextEditingController();
   String _tipoSeleccionado = 'robo';
   File? _foto;
   double? _latitud;
   double? _longitud;
   bool _obteniendoUbicacion = false;
   bool _enviando = false;
+  bool _anonimo = false;
 
   final _tiposEmergencia = {
     'robo': 'Robo',
     'acoso': 'Acoso',
-    'emergencia_medica': 'Emergencia médica',
+    'emergencia_medica': 'Emergencia medica',
     'incendio': 'Incendio',
     'accidente': 'Accidente',
     'persona_sospechosa': 'Persona sospechosa',
@@ -37,6 +41,7 @@ class _SosPageState extends State<SosPage> {
   @override
   void dispose() {
     _descripcionController.dispose();
+    _ubicacionReferenciaController.dispose();
     super.dispose();
   }
 
@@ -48,7 +53,7 @@ class _SosPageState extends State<SosPage> {
       if (!serviceEnabled) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('El GPS está desactivado')),
+            const SnackBar(content: Text('El GPS esta desactivado')),
           );
         }
         setState(() => _obteniendoUbicacion = false);
@@ -61,7 +66,7 @@ class _SosPageState extends State<SosPage> {
         if (permission == LocationPermission.denied) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Permiso de ubicación denegado')),
+              const SnackBar(content: Text('Permiso de ubicacion denegado')),
             );
           }
           setState(() => _obteniendoUbicacion = false);
@@ -73,7 +78,8 @@ class _SosPageState extends State<SosPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('Permiso de ubicación denegado permanentemente')),
+              content: Text('Permiso de ubicacion denegado permanentemente'),
+            ),
           );
         }
         setState(() => _obteniendoUbicacion = false);
@@ -91,7 +97,7 @@ class _SosPageState extends State<SosPage> {
       setState(() => _obteniendoUbicacion = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al obtener ubicación: $e')),
+          SnackBar(content: Text('Error al obtener ubicacion: $e')),
         );
       }
     }
@@ -124,6 +130,10 @@ class _SosPageState extends State<SosPage> {
       latitud: _latitud,
       longitud: _longitud,
       foto: _foto?.path,
+      anonimo: _anonimo,
+      ubicacionReferencia: _ubicacionReferenciaController.text.trim().isEmpty
+          ? null
+          : _ubicacionReferenciaController.text.trim(),
     );
 
     setState(() => _enviando = false);
@@ -135,8 +145,7 @@ class _SosPageState extends State<SosPage> {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Row(
             children: [
               Icon(Icons.check_circle, color: AppTheme.successColor, size: 28),
@@ -145,7 +154,7 @@ class _SosPageState extends State<SosPage> {
             ],
           ),
           content: const Text(
-            'Tu reporte de emergencia ha sido enviado. Seguridad universitaria responderá a la brevedad.',
+            'Tu reporte ha sido recibido. Seguridad universitaria podra seguirlo y atenderlo de inmediato.',
           ),
           actions: [
             TextButton(
@@ -186,47 +195,65 @@ class _SosPageState extends State<SosPage> {
                 color: AppTheme.dangerColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                    color: AppTheme.dangerColor.withValues(alpha: 0.3)),
+                  color: AppTheme.dangerColor.withValues(alpha: 0.3),
+                ),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded,
-                      color: AppTheme.dangerColor, size: 24),
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppTheme.dangerColor,
+                    size: 24,
+                  ),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Solo usa este botón en caso de emergencia real. Se notificará de inmediato al equipo de seguridad.',
+                      'Usa este boton solo ante una emergencia real. El sistema registrara evidencia, ubicacion y seguimiento.',
                       style: TextStyle(
-                          color: AppTheme.dangerColor,
-                          fontWeight: FontWeight.w500),
+                        color: AppTheme.dangerColor,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-
-            const Text('Tipo de emergencia',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            SwitchListTile(
+              value: _anonimo,
+              onChanged: (value) => setState(() => _anonimo = value),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Enviar como reporte anonimo'),
+              subtitle: const Text(
+                'Ideal para acoso, amenazas o situaciones sensibles.',
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Tipo de emergencia',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _tipoSeleccionado,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.category),
-              ),
-              items: _tiposEmergencia.entries.map((e) {
-                return DropdownMenuItem(value: e.key, child: Text(e.value));
-              }).toList(),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() => _tipoSeleccionado = val);
+              initialValue: _tipoSeleccionado,
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.category)),
+              items: _tiposEmergencia.entries
+                  .map((entry) => DropdownMenuItem(
+                        value: entry.key,
+                        child: Text(entry.value),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _tipoSeleccionado = value);
                 }
               },
             ),
             const SizedBox(height: 16),
-
-            const Text('Descripción',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text(
+              'Descripcion',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _descripcionController,
@@ -237,7 +264,15 @@ class _SosPageState extends State<SosPage> {
               ),
             ),
             const SizedBox(height: 16),
-
+            TextField(
+              controller: _ubicacionReferenciaController,
+              decoration: const InputDecoration(
+                labelText: 'Referencia del campus',
+                hintText: 'Ej. Bloque A, entrada principal, biblioteca',
+                prefixIcon: Icon(Icons.place_outlined),
+              ),
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -253,8 +288,7 @@ class _SosPageState extends State<SosPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed:
-                        _obteniendoUbicacion ? null : _obtenerUbicacion,
+                    onPressed: _obteniendoUbicacion ? null : _obtenerUbicacion,
                     icon: _obteniendoUbicacion
                         ? const SizedBox(
                             width: 18,
@@ -262,9 +296,9 @@ class _SosPageState extends State<SosPage> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.location_on),
-                    label: Text(_latitud != null
-                        ? 'Ubicación lista'
-                        : 'Obtener ubicación'),
+                    label: Text(
+                      _latitud != null ? 'Ubicacion lista' : 'Obtener ubicacion',
+                    ),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
@@ -272,7 +306,6 @@ class _SosPageState extends State<SosPage> {
                 ),
               ],
             ),
-
             if (_foto != null) ...[
               const SizedBox(height: 12),
               ClipRRect(
@@ -300,7 +333,6 @@ class _SosPageState extends State<SosPage> {
                 ),
               ),
             ],
-
             const SizedBox(height: 32),
             SizedBox(
               height: 56,
@@ -318,13 +350,13 @@ class _SosPageState extends State<SosPage> {
                     : const Icon(Icons.warning, size: 28),
                 label: Text(
                   _enviando ? 'ENVIANDO...' : 'ENVIAR EMERGENCIA',
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.dangerColor,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),

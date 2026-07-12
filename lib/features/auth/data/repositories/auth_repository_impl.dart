@@ -46,10 +46,10 @@ class AuthRepositoryImpl implements AuthRepository {
         'nombre': nombre,
         'apellido': apellido,
         'rol': rol,
-        if (telefono != null) 'telefono': telefono,
-        if (facultad != null) 'facultad': facultad,
-        if (carrera != null) 'carrera': carrera,
-        if (contactoEmergencia != null) 'contacto_emergencia': contactoEmergencia,
+        'telefono': ?telefono,
+        'facultad': ?facultad,
+        'carrera': ?carrera,
+        'contacto_emergencia': ?contactoEmergencia,
       };
 
       await dataSource.signUp(email, password, userData);

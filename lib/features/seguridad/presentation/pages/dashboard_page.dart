@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../core/config/theme.dart';
+import '../../../../core/widgets/campus_map_widget.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../incidente/presentation/providers/incidente_provider.dart';
+import '../../../edificio/presentation/providers/edificio_provider.dart';
 import '../../../guardia/presentation/providers/guardia_provider.dart';
+import '../../../incidente/presentation/providers/incidente_provider.dart';
 import 'emergencias_page.dart';
-import 'mapa_page.dart';
 import 'historial_page.dart';
+import 'mapa_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -37,8 +40,15 @@ class _DashboardPageState extends State<DashboardPage> {
     final incidenteProvider = context.read<IncidenteProvider>();
     final guardiaProvider = context.read<GuardiaProvider>();
     final authProvider = context.read<AuthProvider>();
-    await incidenteProvider.cargarTodosIncidentes();
-    await guardiaProvider.cargarGuardias();
+    final edificioProvider = context.read<EdificioProvider>();
+
+    await Future.wait([
+      incidenteProvider.cargarTodosIncidentes(),
+      incidenteProvider.cargarIncidentesActivos(),
+      guardiaProvider.cargarGuardias(),
+      edificioProvider.cargarEdificios(),
+    ]);
+
     if (authProvider.userId != null) {
       await guardiaProvider.cargarMiGuardia(authProvider.userId!);
     }
@@ -47,6 +57,7 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(auth.user?.nombreCompleto ?? 'Seguridad'),
@@ -58,14 +69,14 @@ class _DashboardPageState extends State<DashboardPage> {
                 auth.logout();
               }
             },
-            itemBuilder: (_) => [
-              const PopupMenuItem(
+            itemBuilder: (_) => const [
+              PopupMenuItem(
                 value: 'logout',
                 child: Row(
                   children: [
                     Icon(Icons.logout, color: Colors.red),
                     SizedBox(width: 8),
-                    Text('Cerrar sesión'),
+                    Text('Cerrar sesion'),
                   ],
                 ),
               ),
@@ -96,27 +107,38 @@ class _DashboardTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final incidenteProvider = context.watch<IncidenteProvider>();
     final guardiaProvider = context.watch<GuardiaProvider>();
+    final edificioProvider = context.watch<EdificioProvider>();
 
     final emergenciasActivas = incidenteProvider.emergenciasActivas;
-    final incidentesHoy = incidenteProvider.todosIncidentes
-        .where((i) =>
-            i.fecha != null &&
-            i.fecha!.day == DateTime.now().day &&
-            i.fecha!.month == DateTime.now().month &&
-            i.fecha!.year == DateTime.now().year)
-        .length;
+    final incidentesHoy = incidenteProvider.todosIncidentes.where((incidente) {
+      final fecha = incidente.fecha;
+      if (fecha == null) return false;
+      final hoy = DateTime.now();
+      return fecha.year == hoy.year &&
+          fecha.month == hoy.month &&
+          fecha.day == hoy.day;
+    }).length;
     final casosAsignados = incidenteProvider.todosIncidentes
-        .where((i) => i.guardiaId == guardiaProvider.miGuardia?.id &&
-            i.estado != 'Cerrado')
+        .where(
+          (incidente) =>
+              incidente.guardiaId == guardiaProvider.miGuardia?.id &&
+              incidente.estado.toLowerCase() != 'cerrado',
+        )
         .length;
-    final guardiasDisponibles = guardiaProvider.guardias
-        .where((g) => g.disponible)
-        .length;
+    final guardiasDisponibles =
+        guardiaProvider.guardias.where((guardia) => guardia.disponible).length;
+    final incidentesConUbicacion = incidenteProvider.incidentesActivos
+        .where((incidente) => incidente.latitud != null && incidente.longitud != null)
+        .toList();
 
     return RefreshIndicator(
       onRefresh: () async {
-        await incidenteProvider.cargarTodosIncidentes();
-        await guardiaProvider.cargarGuardias();
+        await Future.wait([
+          incidenteProvider.cargarTodosIncidentes(),
+          incidenteProvider.cargarIncidentesActivos(),
+          guardiaProvider.cargarGuardias(),
+          edificioProvider.cargarEdificios(),
+        ]);
       },
       child: ListView(
         padding: const EdgeInsets.all(16),
@@ -137,7 +159,7 @@ class _DashboardTab extends StatelessWidget {
                 icon: Icons.warning_amber_rounded,
               ),
               _SummaryCard(
-                title: 'Incidentes\ndel Día',
+                title: 'Incidentes\ndel Dia',
                 value: incidentesHoy.toString(),
                 color: AppTheme.primaryColor,
                 icon: Icons.receipt_long,
@@ -157,22 +179,34 @@ class _DashboardTab extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          Container(
-            height: 200,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.grey[300],
-            ),
-            child: const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.map, size: 48, color: Colors.grey),
-                  SizedBox(height: 8),
-                  Text('Mapa de incidentes',
-                      style: TextStyle(color: Colors.grey, fontSize: 16)),
-                ],
-              ),
+          SizedBox(
+            height: 220,
+            child: Stack(
+              children: [
+                CampusMapWidget(
+                  incidentes: incidentesConUbicacion,
+                  edificios: edificioProvider.edificios,
+                  initialZoom: 15.5,
+                ),
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 12,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      incidentesConUbicacion.isEmpty
+                          ? 'No hay incidentes activos con ubicacion en este momento.'
+                          : '${incidentesConUbicacion.length} incidentes visibles en el mapa del campus.',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

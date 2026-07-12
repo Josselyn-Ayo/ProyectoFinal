@@ -2,22 +2,18 @@ import '../../domain/entities/alerta.dart';
 
 class AlertaModel extends AlertaEntity {
   AlertaModel({
-    String? id,
-    required String titulo,
-    required String mensaje,
-    DateTime? fecha,
-    String? creadorId,
-    bool programada = false,
-    DateTime? fechaProgramada,
-  }) : super(
-          id: id,
-          titulo: titulo,
-          mensaje: mensaje,
-          fecha: fecha,
-          creadorId: creadorId,
-          programada: programada,
-          fechaProgramada: fechaProgramada,
-        );
+    super.id,
+    required super.titulo,
+    required super.mensaje,
+    super.fecha,
+    super.creadorId,
+    super.programada,
+    super.fechaProgramada,
+    super.tipo,
+    super.audiencia,
+    super.facultadObjetivo,
+    super.activa,
+  });
 
   factory AlertaModel.fromJson(Map<String, dynamic> json) {
     return AlertaModel(
@@ -30,6 +26,10 @@ class AlertaModel extends AlertaEntity {
       fechaProgramada: json['fecha_programada'] != null
           ? DateTime.tryParse(json['fecha_programada'])
           : null,
+      tipo: json['tipo'] ?? 'informativa',
+      audiencia: json['audiencia'] ?? 'todos',
+      facultadObjetivo: json['facultad_objetivo'],
+      activa: json['activa'] as bool? ?? true,
     );
   }
 
@@ -42,6 +42,10 @@ class AlertaModel extends AlertaEntity {
       'creador_id': creadorId,
       'programada': programada,
       'fecha_programada': fechaProgramada?.toIso8601String(),
+      'tipo': tipo,
+      'audiencia': audiencia,
+      'facultad_objetivo': facultadObjetivo,
+      'activa': activa,
     };
   }
 }

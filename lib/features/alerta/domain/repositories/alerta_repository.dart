@@ -8,6 +8,10 @@ abstract class AlertaRepository {
     required String creadorId,
     bool? programada,
     DateTime? fechaProgramada,
+    String tipo = 'informativa',
+    String audiencia = 'todos',
+    String? facultadObjetivo,
+    bool activa = true,
   });
   Future<AlertaEntity> editarAlerta({
     required String id,
@@ -15,6 +19,10 @@ abstract class AlertaRepository {
     required String mensaje,
     bool? programada,
     DateTime? fechaProgramada,
+    String tipo = 'informativa',
+    String audiencia = 'todos',
+    String? facultadObjetivo,
+    bool activa = true,
   });
   Future<void> eliminarAlerta(String id);
 }

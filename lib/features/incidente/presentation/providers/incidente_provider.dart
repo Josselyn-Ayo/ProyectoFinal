@@ -45,7 +45,7 @@ class IncidenteProvider extends ChangeNotifier {
   String? get error => _error;
 
   int get emergenciasActivas =>
-      _incidentesActivos.where((i) => i.estado != 'cerrado').length;
+      _incidentesActivos.where((i) => i.estado.toLowerCase() != 'cerrado').length;
 
   int get incidentesDelDia {
     final hoy = DateTime.now();
@@ -72,6 +72,8 @@ class IncidenteProvider extends ChangeNotifier {
     double? latitud,
     double? longitud,
     String? foto,
+    bool anonimo = false,
+    String? ubicacionReferencia,
   }) async {
     _loading = true;
     _error = null;
@@ -85,6 +87,8 @@ class IncidenteProvider extends ChangeNotifier {
         latitud: latitud,
         longitud: longitud,
         foto: foto,
+        anonimo: anonimo,
+        ubicacionReferencia: ubicacionReferencia,
       ));
       _loading = false;
       notifyListeners();
@@ -119,6 +123,9 @@ class IncidenteProvider extends ChangeNotifier {
 
     try {
       _todosIncidentes = await _getAllIncidentesUseCase(NoParams());
+      _incidentesActivos = _todosIncidentes
+          .where((incidente) => incidente.estado.toLowerCase() != 'cerrado')
+          .toList();
     } catch (e) {
       _error = e.toString();
     }
@@ -152,7 +159,10 @@ class IncidenteProvider extends ChangeNotifier {
         guardiaId: guardiaId,
         respuesta: respuesta,
       ));
-      await cargarIncidentesActivos();
+      await Future.wait([
+        cargarIncidentesActivos(),
+        cargarTodosIncidentes(),
+      ]);
       return true;
     } catch (e) {
       _error = e.toString();

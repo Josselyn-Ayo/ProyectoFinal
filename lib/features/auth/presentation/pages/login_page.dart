@@ -148,7 +148,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
-                          value: _selectedRol,
+                          initialValue: _selectedRol,
                           decoration: const InputDecoration(
                             labelText: 'Rol',
                             prefixIcon: Icon(Icons.badge_outlined),

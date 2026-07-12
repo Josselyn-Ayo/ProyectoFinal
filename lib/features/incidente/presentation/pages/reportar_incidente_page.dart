@@ -1,10 +1,12 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../core/config/theme.dart';
-import '../providers/incidente_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../providers/incidente_provider.dart';
 
 class ReportarIncidentePage extends StatefulWidget {
   const ReportarIncidentePage({super.key});
@@ -15,14 +17,16 @@ class ReportarIncidentePage extends StatefulWidget {
 
 class _ReportarIncidentePageState extends State<ReportarIncidentePage> {
   final _descripcionController = TextEditingController();
+  final _ubicacionReferenciaController = TextEditingController();
   String _tipoSeleccionado = 'robo';
   File? _foto;
   bool _enviando = false;
+  bool _anonimo = false;
 
   final _tiposIncidente = {
     'robo': 'Robo',
     'acoso': 'Acoso',
-    'emergencia_medica': 'Emergencia médica',
+    'emergencia_medica': 'Emergencia medica',
     'incendio': 'Incendio',
     'accidente': 'Accidente',
     'persona_sospechosa': 'Persona sospechosa',
@@ -33,6 +37,7 @@ class _ReportarIncidentePageState extends State<ReportarIncidentePage> {
   @override
   void dispose() {
     _descripcionController.dispose();
+    _ubicacionReferenciaController.dispose();
     super.dispose();
   }
 
@@ -63,6 +68,10 @@ class _ReportarIncidentePageState extends State<ReportarIncidentePage> {
           ? _descripcionController.text
           : null,
       foto: _foto?.path,
+      anonimo: _anonimo,
+      ubicacionReferencia: _ubicacionReferenciaController.text.trim().isEmpty
+          ? null
+          : _ubicacionReferenciaController.text.trim(),
     );
 
     setState(() => _enviando = false);
@@ -80,8 +89,7 @@ class _ReportarIncidentePageState extends State<ReportarIncidentePage> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text(incidenteProvider.error ?? 'Error al reportar incidente'),
+          content: Text(incidenteProvider.error ?? 'Error al reportar incidente'),
           backgroundColor: AppTheme.dangerColor,
         ),
       );
@@ -97,24 +105,38 @@ class _ReportarIncidentePageState extends State<ReportarIncidentePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Tipo de incidente',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            SwitchListTile(
+              value: _anonimo,
+              onChanged: (value) => setState(() => _anonimo = value),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Reporte anonimo'),
+              subtitle: const Text(
+                'Protege la identidad del estudiante en casos sensibles.',
+              ),
+            ),
+            const Text(
+              'Tipo de incidente',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _tipoSeleccionado,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.category),
-              ),
-              items: _tiposIncidente.entries.map((e) {
-                return DropdownMenuItem(value: e.key, child: Text(e.value));
-              }).toList(),
-              onChanged: (val) {
-                if (val != null) setState(() => _tipoSeleccionado = val);
+              initialValue: _tipoSeleccionado,
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.category)),
+              items: _tiposIncidente.entries
+                  .map((entry) => DropdownMenuItem(
+                        value: entry.key,
+                        child: Text(entry.value),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) setState(() => _tipoSeleccionado = value);
               },
             ),
             const SizedBox(height: 16),
-            const Text('Descripción',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text(
+              'Descripcion',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _descripcionController,
@@ -122,6 +144,15 @@ class _ReportarIncidentePageState extends State<ReportarIncidentePage> {
               decoration: const InputDecoration(
                 hintText: 'Describe lo sucedido...',
                 alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _ubicacionReferenciaController,
+              decoration: const InputDecoration(
+                labelText: 'Referencia del campus',
+                hintText: 'Ej. Coliseo, laboratorios, entrada sur',
+                prefixIcon: Icon(Icons.place_outlined),
               ),
             ),
             const SizedBox(height: 16),
@@ -146,9 +177,7 @@ class _ReportarIncidentePageState extends State<ReportarIncidentePage> {
                       child: IconButton(
                         onPressed: () => setState(() => _foto = null),
                         icon: const Icon(Icons.close, color: Colors.white),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.black45,
-                        ),
+                        style: IconButton.styleFrom(backgroundColor: Colors.black45),
                       ),
                     ),
                   ],
@@ -165,11 +194,12 @@ class _ReportarIncidentePageState extends State<ReportarIncidentePage> {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Icon(Icons.send),
-                label: Text(
-                    _enviando ? 'ENVIANDO...' : 'ENVIAR REPORTE'),
+                label: Text(_enviando ? 'ENVIANDO...' : 'ENVIAR REPORTE'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
                 ),

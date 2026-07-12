@@ -113,7 +113,7 @@ class _AdminUsuariosPageState extends State<AdminUsuariosPage> {
                             const InputDecoration(labelText: 'Carrera')),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: rol,
+                      initialValue: rol,
                       decoration: const InputDecoration(labelText: 'Rol'),
                       items: const [
                         DropdownMenuItem(
@@ -223,7 +223,7 @@ class _AdminUsuariosPageState extends State<AdminUsuariosPage> {
                             const InputDecoration(labelText: 'Carrera')),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: rol,
+                      initialValue: rol,
                       decoration: const InputDecoration(labelText: 'Rol'),
                       items: const [
                         DropdownMenuItem(

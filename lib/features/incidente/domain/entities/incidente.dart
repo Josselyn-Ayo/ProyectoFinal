@@ -11,6 +11,8 @@ class IncidenteEntity {
   final String? prioridad;
   final String? respuestaSeguridad;
   final String? guardiaId;
+  final bool anonimo;
+  final String? ubicacionReferencia;
   final DateTime? fecha;
 
   const IncidenteEntity({
@@ -26,6 +28,8 @@ class IncidenteEntity {
     this.prioridad,
     this.respuestaSeguridad,
     this.guardiaId,
+    this.anonimo = false,
+    this.ubicacionReferencia,
     this.fecha,
   });
 
@@ -59,6 +63,8 @@ class IncidenteEntity {
     String? prioridad,
     String? respuestaSeguridad,
     String? guardiaId,
+    bool? anonimo,
+    String? ubicacionReferencia,
     DateTime? fecha,
   }) {
     return IncidenteEntity(
@@ -74,6 +80,8 @@ class IncidenteEntity {
       prioridad: prioridad ?? this.prioridad,
       respuestaSeguridad: respuestaSeguridad ?? this.respuestaSeguridad,
       guardiaId: guardiaId ?? this.guardiaId,
+      anonimo: anonimo ?? this.anonimo,
+      ubicacionReferencia: ubicacionReferencia ?? this.ubicacionReferencia,
       fecha: fecha ?? this.fecha,
     );
   }

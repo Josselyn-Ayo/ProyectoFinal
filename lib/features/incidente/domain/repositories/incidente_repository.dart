@@ -8,6 +8,8 @@ abstract class IncidenteRepository {
     double? latitud,
     double? longitud,
     String? foto,
+    bool anonimo = false,
+    String? ubicacionReferencia,
   });
 
   Future<List<IncidenteEntity>> getIncidentesUsuario(String usuarioId);

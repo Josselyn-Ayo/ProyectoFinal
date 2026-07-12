@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../core/config/theme.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../alerta/domain/entities/alerta.dart';
 import '../../../alerta/presentation/providers/alerta_provider.dart';
-import '../../../incidente/presentation/providers/incidente_provider.dart';
+import '../../../auth/domain/entities/user.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../incidente/presentation/pages/mapa_page.dart';
+import '../../../incidente/presentation/pages/mis_reportes_page.dart';
 import '../../../incidente/presentation/pages/sos_page.dart';
-import 'perfil_page.dart';
+import '../../../incidente/presentation/providers/incidente_provider.dart';
 import 'alertas_estudiante_page.dart';
+import 'centro_seguridad_page.dart';
+import 'perfil_page.dart';
 
 class EstudianteHomePage extends StatefulWidget {
   const EstudianteHomePage({super.key});
@@ -45,22 +51,23 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.person),
+            tooltip: 'Perfil',
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const PerfilPage()),
               );
             },
-            tooltip: 'Perfil',
           ),
           IconButton(
             icon: const Icon(Icons.logout),
+            tooltip: 'Cerrar sesion',
             onPressed: () async {
               final confirmar = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  title: const Text('Cerrar sesión'),
-                  content: const Text('¿Estás seguro de que deseas salir?'),
+                  title: const Text('Cerrar sesion'),
+                  content: const Text('Estas seguro de que deseas salir?'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
@@ -73,11 +80,11 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
                   ],
                 ),
               );
+
               if (confirmar == true) {
                 await auth.logout();
               }
             },
-            tooltip: 'Cerrar sesión',
           ),
         ],
       ),
@@ -98,6 +105,8 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
               _buildAccesosRapidos(),
               const SizedBox(height: 24),
               _buildEstadoReportes(incidente),
+              const SizedBox(height: 24),
+              _buildCentroSeguridadCallout(),
             ],
           ),
         ),
@@ -107,6 +116,7 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
 
   Widget _buildWelcomeHeader(AuthProvider auth) {
     final nombre = auth.user?.nombre ?? 'Usuario';
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -154,6 +164,7 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
     return Consumer<AuthProvider>(
       builder: (context, auth, _) {
         final uid = auth.userId ?? '';
+
         return SizedBox(
           width: double.infinity,
           height: 100,
@@ -161,8 +172,7 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                    builder: (_) => SosPage(usuarioId: uid)),
+                MaterialPageRoute(builder: (_) => SosPage(usuarioId: uid)),
               );
             },
             icon: const Icon(Icons.warning_amber_rounded, size: 40),
@@ -185,7 +195,11 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
   }
 
   Widget _buildUltimasAlertas(AlertaProvider alerta) {
-    final alertas = alerta.alertas.take(3).toList();
+    final user = context.read<AuthProvider>().user;
+    final alertas = alerta.alertas
+        .where((item) => _shouldShowAlert(item, user))
+        .take(3)
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,7 +208,7 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Últimas Alertas',
+              'Ultimas Alertas',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             TextButton(
@@ -202,7 +216,8 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => const AlertasEstudiantePage()),
+                    builder: (_) => const AlertasEstudiantePage(),
+                  ),
                 );
               },
               child: const Text('Ver todas'),
@@ -225,21 +240,27 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
             ),
           )
         else
-          ...alertas.map((a) => Card(
-                child: ListTile(
-                  leading: const Icon(Icons.campaign,
-                      color: AppTheme.warningColor),
-                  title: Text(a.titulo),
-                  subtitle: Text(a.mensaje),
-                  trailing: a.fecha != null
-                      ? Text(
-                          _formatDate(a.fecha!),
-                          style:
-                              const TextStyle(fontSize: 12, color: Colors.grey),
-                        )
-                      : null,
+          ...alertas.map(
+            (item) => Card(
+              child: ListTile(
+                leading: Icon(
+                  _alertIcon(item.tipo),
+                  color: _alertColor(item.tipo),
                 ),
-              )),
+                title: Text(item.titulo),
+                subtitle: Text(item.mensaje),
+                trailing: item.fecha != null
+                    ? Text(
+                        _formatDate(item.fecha!),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      )
+                    : null,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -254,8 +275,7 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
           final uid = context.read<AuthProvider>().userId ?? '';
           Navigator.push(
             context,
-            MaterialPageRoute(
-                builder: (_) => SosPage(usuarioId: uid)),
+            MaterialPageRoute(builder: (_) => SosPage(usuarioId: uid)),
           );
         },
       ),
@@ -264,8 +284,9 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
         label: 'Mapa',
         color: AppTheme.successColor,
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Mapa en construcción')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const MapaIncidentePage()),
           );
         },
       ),
@@ -277,7 +298,8 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (_) => const AlertasEstudiantePage()),
+              builder: (_) => const AlertasEstudiantePage(),
+            ),
           );
         },
       ),
@@ -286,8 +308,9 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
         label: 'Mis Reportes',
         color: AppTheme.secondaryColor,
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Mis Reportes en construcción')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const MisReportesPage()),
           );
         },
       ),
@@ -297,7 +320,7 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Accesos Rápidos',
+          'Accesos Rapidos',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
@@ -309,28 +332,30 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
           crossAxisSpacing: 12,
           childAspectRatio: 1.6,
           children: accesos
-              .map((a) => Card(
-                    child: InkWell(
-                      onTap: a.onTap,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(a.icon, size: 36, color: a.color),
-                            const SizedBox(height: 8),
-                            Text(
-                              a.label,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
+              .map(
+                (acceso) => Card(
+                  child: InkWell(
+                    onTap: acceso.onTap,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(acceso.icon, size: 36, color: acceso.color),
+                          const SizedBox(height: 8),
+                          Text(
+                            acceso.label,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  ))
+                  ),
+                ),
+              )
               .toList(),
         ),
       ],
@@ -371,9 +396,7 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    incidente.loading
-                        ? 'Cargando...'
-                        : '$activos reportes activos',
+                    incidente.loading ? 'Cargando...' : '$activos reportes activos',
                     style: TextStyle(
                       fontSize: 14,
                       color: activos > 0
@@ -388,6 +411,86 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
         ),
       ),
     );
+  }
+
+  Widget _buildCentroSeguridadCallout() {
+    return Card(
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppTheme.warningColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.shield_moon, color: AppTheme.warningColor),
+        ),
+        title: const Text(
+          'Centro de Seguridad',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: const Text(
+          'Contactos, protocolo de emergencia y recomendaciones para el campus.',
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CentroSeguridadPage()),
+          );
+        },
+      ),
+    );
+  }
+
+  bool _shouldShowAlert(AlertaEntity alerta, UserEntity? user) {
+    if (!alerta.activa) return false;
+    if (alerta.programada &&
+        alerta.fechaProgramada != null &&
+        alerta.fechaProgramada!.isAfter(DateTime.now())) {
+      return false;
+    }
+
+    final audiencia = alerta.audiencia;
+    if (audiencia == 'todos') return true;
+    if (audiencia == 'estudiantes') return true;
+    if (audiencia == 'facultad') {
+      final facultadUsuario = user?.facultad?.toString().trim().toLowerCase();
+      final facultadObjetivo =
+          alerta.facultadObjetivo?.toString().trim().toLowerCase();
+      return facultadUsuario != null &&
+          facultadUsuario.isNotEmpty &&
+          facultadObjetivo != null &&
+          facultadObjetivo.isNotEmpty &&
+          facultadUsuario == facultadObjetivo;
+    }
+    return false;
+  }
+
+  IconData _alertIcon(String tipo) {
+    switch (tipo) {
+      case 'urgente':
+        return Icons.warning_amber_rounded;
+      case 'preventiva':
+        return Icons.shield_outlined;
+      case 'simulacro':
+        return Icons.notifications_active_outlined;
+      default:
+        return Icons.campaign;
+    }
+  }
+
+  Color _alertColor(String tipo) {
+    switch (tipo) {
+      case 'urgente':
+        return AppTheme.dangerColor;
+      case 'preventiva':
+        return AppTheme.successColor;
+      case 'simulacro':
+        return AppTheme.secondaryColor;
+      default:
+        return AppTheme.warningColor;
+    }
   }
 
   String _formatDate(DateTime date) {

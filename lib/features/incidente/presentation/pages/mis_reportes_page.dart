@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/config/theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import 'detalle_reporte_page.dart';
 import '../providers/incidente_provider.dart';
 
 class MisReportesPage extends StatefulWidget {
@@ -90,6 +91,14 @@ class _MisReportesPageState extends State<MisReportesPage> {
                                       fontSize: 12, color: Colors.grey),
                                 )
                               : null,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => DetalleReportePage(incidente: incidente),
+                              ),
+                            );
+                          },
                         ),
                       );
                     },

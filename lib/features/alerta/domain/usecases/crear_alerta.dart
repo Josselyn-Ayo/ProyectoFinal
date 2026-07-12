@@ -8,6 +8,10 @@ class CrearAlertaParams {
   final String creadorId;
   final bool? programada;
   final DateTime? fechaProgramada;
+  final String tipo;
+  final String audiencia;
+  final String? facultadObjetivo;
+  final bool activa;
 
   CrearAlertaParams({
     required this.titulo,
@@ -15,6 +19,10 @@ class CrearAlertaParams {
     required this.creadorId,
     this.programada,
     this.fechaProgramada,
+    this.tipo = 'informativa',
+    this.audiencia = 'todos',
+    this.facultadObjetivo,
+    this.activa = true,
   });
 }
 
@@ -30,6 +38,10 @@ class CrearAlertaUseCase extends UseCase<AlertaEntity, CrearAlertaParams> {
       creadorId: params.creadorId,
       programada: params.programada,
       fechaProgramada: params.fechaProgramada,
+      tipo: params.tipo,
+      audiencia: params.audiencia,
+      facultadObjetivo: params.facultadObjetivo,
+      activa: params.activa,
     );
   }
 }

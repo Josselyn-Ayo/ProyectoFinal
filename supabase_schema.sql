@@ -24,6 +24,8 @@ CREATE TABLE incidentes (
   usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
   tipo TEXT NOT NULL,
   descripcion TEXT,
+  ubicacion_referencia TEXT,
+  anonimo BOOLEAN DEFAULT FALSE,
   latitud DOUBLE PRECISION,
   longitud DOUBLE PRECISION,
   foto TEXT,
@@ -50,6 +52,10 @@ CREATE TABLE alertas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   titulo TEXT NOT NULL,
   mensaje TEXT NOT NULL,
+  tipo TEXT NOT NULL DEFAULT 'informativa' CHECK (tipo IN ('informativa', 'preventiva', 'urgente', 'simulacro')),
+  audiencia TEXT NOT NULL DEFAULT 'todos' CHECK (audiencia IN ('todos', 'estudiantes', 'seguridad', 'admin', 'facultad')),
+  facultad_objetivo TEXT,
+  activa BOOLEAN DEFAULT TRUE,
   fecha TIMESTAMPTZ DEFAULT NOW(),
   creador_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
   programada BOOLEAN DEFAULT FALSE,
@@ -89,6 +95,74 @@ CREATE INDEX idx_guardias_usuario ON guardias(usuario_id);
 CREATE INDEX idx_guardias_estado ON guardias(estado);
 
 -- ============================================
+-- SINCRONIZACION auth.users -> usuarios
+-- ============================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.usuarios (
+    id,
+    nombre,
+    apellido,
+    correo,
+    telefono,
+    rol,
+    facultad,
+    carrera,
+    contacto_emergencia
+  )
+  VALUES (
+    NEW.id,
+    COALESCE(NULLIF(NEW.raw_user_meta_data->>'nombre', ''), split_part(NEW.email, '@', 1), 'Usuario'),
+    COALESCE(NEW.raw_user_meta_data->>'apellido', ''),
+    NEW.email,
+    NEW.raw_user_meta_data->>'telefono',
+    COALESCE(NULLIF(NEW.raw_user_meta_data->>'rol', ''), 'estudiante'),
+    NEW.raw_user_meta_data->>'facultad',
+    NEW.raw_user_meta_data->>'carrera',
+    NEW.raw_user_meta_data->>'contacto_emergencia'
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
+
+INSERT INTO public.usuarios (
+  id,
+  nombre,
+  apellido,
+  correo,
+  telefono,
+  rol,
+  facultad,
+  carrera,
+  contacto_emergencia
+)
+SELECT
+  au.id,
+  COALESCE(NULLIF(au.raw_user_meta_data->>'nombre', ''), split_part(au.email, '@', 1), 'Usuario'),
+  COALESCE(au.raw_user_meta_data->>'apellido', ''),
+  au.email,
+  au.raw_user_meta_data->>'telefono',
+  COALESCE(NULLIF(au.raw_user_meta_data->>'rol', ''), 'estudiante'),
+  au.raw_user_meta_data->>'facultad',
+  au.raw_user_meta_data->>'carrera',
+  au.raw_user_meta_data->>'contacto_emergencia'
+FROM auth.users au
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================
 -- POLITICAS RLS (Row Level Security)
 -- ============================================
 ALTER TABLE usuarios ENABLE ROW LEVEL SECURITY;
@@ -103,6 +177,8 @@ CREATE POLICY "Usuarios autenticados pueden ver usuarios" ON usuarios
   FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Usuarios pueden editar su perfil" ON usuarios
   FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Usuarios pueden insertar su perfil" ON usuarios
+  FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "Admin puede insertar usuarios" ON usuarios
   FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid() AND rol = 'admin'));
 CREATE POLICY "Admin puede eliminar usuarios" ON usuarios

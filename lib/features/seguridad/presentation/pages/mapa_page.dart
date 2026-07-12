@@ -1,10 +1,15 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../core/config/theme.dart';
-import '../../../incidente/presentation/providers/incidente_provider.dart';
+import '../../../../core/widgets/campus_map_widget.dart';
+import '../../../edificio/domain/entities/edificio.dart';
 import '../../../edificio/presentation/providers/edificio_provider.dart';
+import '../../../guardia/presentation/providers/guardia_provider.dart';
 import '../../../incidente/domain/entities/incidente.dart';
+import '../../../incidente/presentation/providers/incidente_provider.dart';
 
 class MapaSeguridadPage extends StatefulWidget {
   const MapaSeguridadPage({super.key});
@@ -16,6 +21,7 @@ class MapaSeguridadPage extends StatefulWidget {
 class _MapaSeguridadPageState extends State<MapaSeguridadPage> {
   Timer? _refreshTimer;
   IncidenteEntity? _selectedIncidente;
+  EdificioEntity? _selectedEdificio;
 
   @override
   void initState() {
@@ -34,39 +40,48 @@ class _MapaSeguridadPageState extends State<MapaSeguridadPage> {
     super.dispose();
   }
 
-  void _loadData() {
-    context.read<IncidenteProvider>().cargarTodosIncidentes();
-    context.read<EdificioProvider>().cargarEdificios();
+  Future<void> _loadData() async {
+    await Future.wait([
+      context.read<IncidenteProvider>().cargarIncidentesActivos(),
+      context.read<EdificioProvider>().cargarEdificios(),
+    ]);
   }
 
   @override
   Widget build(BuildContext context) {
     final incidenteProvider = context.watch<IncidenteProvider>();
-    final activos = incidenteProvider.incidentesActivos;
+    final edificioProvider = context.watch<EdificioProvider>();
+    final activos = incidenteProvider.incidentesActivos
+        .where((incidente) => incidente.latitud != null && incidente.longitud != null)
+        .toList();
 
     return Stack(
       children: [
-        Container(
-          color: Colors.grey[300],
-          child: const Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.map, size: 80, color: Colors.grey),
-                SizedBox(height: 12),
-                Text('Mapa de seguridad',
-                    style: TextStyle(color: Colors.grey, fontSize: 18)),
-                SizedBox(height: 4),
-                Text('${0} incidentes activos en el mapa',
-                    style: TextStyle(color: Colors.grey, fontSize: 14)),
-              ],
+        Positioned.fill(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: CampusMapWidget(
+              incidentes: activos,
+              edificios: edificioProvider.edificios,
+              onIncidenteTap: (incidente) {
+                setState(() {
+                  _selectedEdificio = null;
+                  _selectedIncidente = incidente;
+                });
+              },
+              onEdificioTap: (edificio) {
+                setState(() {
+                  _selectedIncidente = null;
+                  _selectedEdificio = edificio;
+                });
+              },
             ),
           ),
         ),
         Positioned(
-          top: 12,
-          left: 12,
-          right: 12,
+          top: 24,
+          left: 24,
+          right: 24,
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -85,10 +100,18 @@ class _MapaSeguridadPageState extends State<MapaSeguridadPage> {
                 const SizedBox(width: 16),
                 _LegendDot(color: AppTheme.successColor, label: 'Edificios'),
                 const Spacer(),
-                Text('${activos.length} activos',
-                    style: TextStyle(
-                        color: AppTheme.dangerColor,
-                        fontWeight: FontWeight.bold)),
+                Text(
+                  '${activos.length} activos',
+                  style: TextStyle(
+                    color: AppTheme.dangerColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  onPressed: _loadData,
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Recargar',
+                ),
               ],
             ),
           ),
@@ -98,13 +121,34 @@ class _MapaSeguridadPageState extends State<MapaSeguridadPage> {
             bottom: 16,
             left: 16,
             right: 16,
-            child: _buildInfoCard(_selectedIncidente!),
+            child: _buildIncidenteCard(_selectedIncidente!),
+          ),
+        if (_selectedEdificio != null)
+          Positioned(
+            bottom: 16,
+            left: 16,
+            right: 16,
+            child: _buildEdificioCard(_selectedEdificio!),
+          ),
+        if (activos.isEmpty && !incidenteProvider.loading)
+          const Positioned(
+            bottom: 16,
+            left: 16,
+            right: 16,
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'No hay incidentes activos con ubicacion para mostrar en el mapa.',
+                ),
+              ),
+            ),
           ),
       ],
     );
   }
 
-  Widget _buildInfoCard(IncidenteEntity incidente) {
+  Widget _buildIncidenteCard(IncidenteEntity incidente) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -115,40 +159,84 @@ class _MapaSeguridadPageState extends State<MapaSeguridadPage> {
             Row(
               children: [
                 Expanded(
-                  child: Text(incidente.tipo,
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    incidente.tipo,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () =>
-                      setState(() => _selectedIncidente = null),
+                  onPressed: () => setState(() => _selectedIncidente = null),
                 ),
               ],
             ),
-            if (incidente.descripcion != null)
-              Text(incidente.descripcion!,
-                  style: TextStyle(color: Colors.grey[600])),
+            if (incidente.descripcion != null && incidente.descripcion!.trim().isNotEmpty)
+              Text(
+                incidente.descripcion!,
+                style: TextStyle(color: Colors.grey[700]),
+              ),
             const SizedBox(height: 4),
-            Text(incidente.usuarioNombre ?? '',
-                style: const TextStyle(fontWeight: FontWeight.w500)),
+            Text(
+              incidente.anonimo
+                  ? 'Anonimo'
+                  : incidente.usuarioNombre ?? 'Usuario sin nombre',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  context
+                onPressed: () async {
+                  final guardiaProvider = context.read<GuardiaProvider>();
+                  final miGuardia = guardiaProvider.miGuardia;
+                  final ok = await context
                       .read<IncidenteProvider>()
-                      .actualizarEstado(incidente.id, 'Guardia asignado');
-                  setState(() => _selectedIncidente = null);
+                      .actualizarEstado(
+                        incidente.id,
+                        'Guardia asignado',
+                        guardiaId: miGuardia?.id,
+                      );
+                  if (ok && miGuardia?.id != null) {
+                    await guardiaProvider.actualizarEstado(
+                      guardiaId: miGuardia!.id!,
+                      estado: 'Ocupado',
+                    );
+                  }
+                  if (ok && mounted) {
+                    setState(() => _selectedIncidente = null);
+                  }
                 },
                 icon: const Icon(Icons.check),
                 label: const Text('Aceptar'),
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor),
+                  backgroundColor: AppTheme.primaryColor,
+                ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEdificioCard(EdificioEntity edificio) {
+    return Card(
+      child: ListTile(
+        title: Text(
+          edificio.nombre,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          edificio.descripcion?.trim().isNotEmpty == true
+              ? edificio.descripcion!
+              : 'Punto del campus registrado en el mapa.',
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => setState(() => _selectedEdificio = null),
         ),
       ),
     );
@@ -169,7 +257,10 @@ class _LegendDot extends StatelessWidget {
         Container(
           width: 12,
           height: 12,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
         ),
         const SizedBox(width: 4),
         Text(label, style: const TextStyle(fontSize: 13)),

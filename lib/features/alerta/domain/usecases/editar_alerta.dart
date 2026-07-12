@@ -8,6 +8,10 @@ class EditarAlertaParams {
   final String mensaje;
   final bool? programada;
   final DateTime? fechaProgramada;
+  final String tipo;
+  final String audiencia;
+  final String? facultadObjetivo;
+  final bool activa;
 
   EditarAlertaParams({
     required this.id,
@@ -15,6 +19,10 @@ class EditarAlertaParams {
     required this.mensaje,
     this.programada,
     this.fechaProgramada,
+    this.tipo = 'informativa',
+    this.audiencia = 'todos',
+    this.facultadObjetivo,
+    this.activa = true,
   });
 }
 
@@ -30,6 +38,10 @@ class EditarAlertaUseCase extends UseCase<AlertaEntity, EditarAlertaParams> {
       mensaje: params.mensaje,
       programada: params.programada,
       fechaProgramada: params.fechaProgramada,
+      tipo: params.tipo,
+      audiencia: params.audiencia,
+      facultadObjetivo: params.facultadObjetivo,
+      activa: params.activa,
     );
   }
 }

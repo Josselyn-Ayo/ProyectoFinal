@@ -15,6 +15,8 @@ class IncidenteRepositoryImpl implements IncidenteRepository {
     double? latitud,
     double? longitud,
     String? foto,
+    bool anonimo = false,
+    String? ubicacionReferencia,
   }) async {
     await datasource.crearIncidente({
       'usuario_id': usuarioId,
@@ -23,6 +25,8 @@ class IncidenteRepositoryImpl implements IncidenteRepository {
       'latitud': latitud,
       'longitud': longitud,
       'foto': foto,
+      'anonimo': anonimo,
+      'ubicacion_referencia': ubicacionReferencia,
     });
   }
 
@@ -55,8 +59,8 @@ class IncidenteRepositoryImpl implements IncidenteRepository {
       incidenteId: incidenteId,
       data: {
         'estado': estado,
-        if (guardiaId != null) 'guardia_id': guardiaId,
-        if (respuesta != null) 'respuesta_seguridad': respuesta,
+        'guardia_id': ?guardiaId,
+        'respuesta_seguridad': ?respuesta,
       },
     );
   }

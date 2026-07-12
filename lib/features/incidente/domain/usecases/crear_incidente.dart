@@ -8,6 +8,8 @@ class CrearIncidenteParams {
   final double? latitud;
   final double? longitud;
   final String? foto;
+  final bool anonimo;
+  final String? ubicacionReferencia;
 
   const CrearIncidenteParams({
     this.usuarioId,
@@ -16,6 +18,8 @@ class CrearIncidenteParams {
     this.latitud,
     this.longitud,
     this.foto,
+    this.anonimo = false,
+    this.ubicacionReferencia,
   });
 }
 
@@ -33,6 +37,8 @@ class CrearIncidenteUseCase implements UseCase<void, CrearIncidenteParams> {
       latitud: params.latitud,
       longitud: params.longitud,
       foto: params.foto,
+      anonimo: params.anonimo,
+      ubicacionReferencia: params.ubicacionReferencia,
     );
   }
 }

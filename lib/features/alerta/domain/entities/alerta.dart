@@ -6,6 +6,10 @@ class AlertaEntity {
   final String? creadorId;
   final bool programada;
   final DateTime? fechaProgramada;
+  final String tipo;
+  final String audiencia;
+  final String? facultadObjetivo;
+  final bool activa;
 
   AlertaEntity({
     this.id,
@@ -15,5 +19,9 @@ class AlertaEntity {
     this.creadorId,
     this.programada = false,
     this.fechaProgramada,
+    this.tipo = 'informativa',
+    this.audiencia = 'todos',
+    this.facultadObjetivo,
+    this.activa = true,
   });
 }

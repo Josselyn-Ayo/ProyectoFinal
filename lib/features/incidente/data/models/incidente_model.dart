@@ -14,6 +14,8 @@ class IncidenteModel extends IncidenteEntity {
     super.prioridad,
     super.respuestaSeguridad,
     super.guardiaId,
+    super.anonimo,
+    super.ubicacionReferencia,
     super.fecha,
   });
 
@@ -38,6 +40,8 @@ class IncidenteModel extends IncidenteEntity {
       prioridad: json['prioridad'] as String?,
       respuestaSeguridad: json['respuesta_seguridad'] as String?,
       guardiaId: json['guardia_id'] as String?,
+      anonimo: json['anonimo'] as bool? ?? false,
+      ubicacionReferencia: json['ubicacion_referencia'] as String?,
       fecha: json['fecha'] != null ? DateTime.tryParse(json['fecha'] as String) : null,
     );
   }
@@ -54,6 +58,8 @@ class IncidenteModel extends IncidenteEntity {
       'prioridad': prioridad,
       'respuesta_seguridad': respuestaSeguridad,
       'guardia_id': guardiaId,
+      'anonimo': anonimo,
+      'ubicacion_referencia': ubicacionReferencia,
     };
   }
 
@@ -70,6 +76,8 @@ class IncidenteModel extends IncidenteEntity {
         prioridad: prioridad,
         respuestaSeguridad: respuestaSeguridad,
         guardiaId: guardiaId,
+        anonimo: anonimo,
+        ubicacionReferencia: ubicacionReferencia,
         fecha: fecha,
       );
 }

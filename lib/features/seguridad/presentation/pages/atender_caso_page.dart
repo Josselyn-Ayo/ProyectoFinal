@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/config/theme.dart';
+import '../../../../core/widgets/campus_map_widget.dart';
 import '../../../incidente/domain/entities/incidente.dart';
 import '../../../incidente/presentation/providers/incidente_provider.dart';
 import '../../../guardia/presentation/providers/guardia_provider.dart';
@@ -70,13 +71,35 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
+                final guardiaProvider = context.read<GuardiaProvider>();
+                final miGuardia = guardiaProvider.miGuardia;
                 context
                     .read<IncidenteProvider>()
-                    .actualizarEstado(_incidente.id, 'Cerrado');
-                Navigator.pop(ctx);
+                    .actualizarEstado(
+                      _incidente.id,
+                      'Cerrado',
+                      guardiaId: miGuardia?.id,
+                      respuesta: respuestaCtrl.text.trim().isEmpty
+                          ? null
+                          : respuestaCtrl.text.trim(),
+                    );
+                if (miGuardia?.id != null) {
+                  await guardiaProvider.actualizarEstado(
+                    guardiaId: miGuardia!.id!,
+                    estado: 'Disponible',
+                  );
+                }
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                }
                 setState(() {
-                  _incidente = _incidente.copyWith(estado: 'Cerrado');
+                  _incidente = _incidente.copyWith(
+                    estado: 'Cerrado',
+                    respuestaSeguridad: respuestaCtrl.text.trim().isEmpty
+                        ? null
+                        : respuestaCtrl.text.trim(),
+                  );
                 });
               },
               child: const Text('Cerrar caso'),
@@ -140,9 +163,18 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
                       ],
                     ),
                     const Divider(),
-                    _detailRow('Usuario', _incidente.usuarioNombre ?? 'N/A'),
+                    _detailRow(
+                      'Usuario',
+                      _incidente.anonimo
+                          ? 'Anonimo'
+                          : _incidente.usuarioNombre ?? 'N/A',
+                    ),
                     _detailRow('Fecha', _formatDate(_incidente.fecha)),
                     _detailRow('Prioridad', _incidente.prioridad ?? 'Media'),
+                    _detailRow('Anonimo', _incidente.anonimo ? 'Si' : 'No'),
+                    if (_incidente.ubicacionReferencia != null &&
+                        _incidente.ubicacionReferencia!.trim().isNotEmpty)
+                      _detailRow('Referencia', _incidente.ubicacionReferencia!),
                     if (_incidente.descripcion != null) ...[
                       const SizedBox(height: 8),
                       const Text('Descripción',
@@ -189,18 +221,28 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
                     const Text('Ubicación',
                         style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
-                    Container(
-                      height: 150,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(8),
+                    if (_incidente.latitud != null && _incidente.longitud != null)
+                      SizedBox(
+                        height: 180,
+                        width: double.infinity,
+                        child: CampusMapWidget(
+                          incidentes: [_incidente],
+                          edificios: const [],
+                          initialZoom: 17,
+                        ),
+                      )
+                    else
+                      Container(
+                        height: 120,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Center(
+                          child: Text('Este incidente no tiene coordenadas registradas'),
+                        ),
                       ),
-                      child: const Center(
-                        child:
-                            Icon(Icons.map, size: 48, color: Colors.grey),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -216,7 +258,11 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
                       onPressed: () {
                         context
                             .read<IncidenteProvider>()
-                            .actualizarEstado(_incidente.id, 'En camino');
+                            .actualizarEstado(
+                              _incidente.id,
+                              'En camino',
+                              guardiaId: miGuardia?.id,
+                            );
                         setState(() {
                           _incidente =
                               _incidente.copyWith(estado: 'En camino');
@@ -231,7 +277,11 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
                       onPressed: () {
                         context
                             .read<IncidenteProvider>()
-                            .actualizarEstado(_incidente.id, 'Atendido');
+                            .actualizarEstado(
+                              _incidente.id,
+                              'Atendido',
+                              guardiaId: miGuardia?.id,
+                            );
                         setState(() {
                           _incidente =
                               _incidente.copyWith(estado: 'Atendido');
@@ -250,12 +300,23 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
                     ),
                   if (_incidente.estado == 'Reportado')
                     ElevatedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
                         context.read<IncidenteProvider>().actualizarEstado(
-                            _incidente.id, 'Guardia asignado');
+                              _incidente.id,
+                              'Guardia asignado',
+                              guardiaId: miGuardia?.id,
+                            );
+                        if (miGuardia?.id != null) {
+                          await context.read<GuardiaProvider>().actualizarEstado(
+                                guardiaId: miGuardia!.id!,
+                                estado: 'Ocupado',
+                              );
+                        }
                         setState(() {
                           _incidente = _incidente.copyWith(
-                              estado: 'Guardia asignado');
+                            estado: 'Guardia asignado',
+                            guardiaId: miGuardia?.id,
+                          );
                         });
                       },
                       icon: const Icon(Icons.check_circle),

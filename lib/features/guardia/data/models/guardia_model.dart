@@ -2,20 +2,13 @@ import '../../domain/entities/guardia.dart';
 
 class GuardiaModel extends GuardiaEntity {
   GuardiaModel({
-    String? id,
-    required String usuarioId,
-    String? usuarioNombre,
-    String? usuarioCorreo,
-    String? turno,
-    String estado = 'Disponible',
-  }) : super(
-          id: id,
-          usuarioId: usuarioId,
-          usuarioNombre: usuarioNombre,
-          usuarioCorreo: usuarioCorreo,
-          turno: turno,
-          estado: estado,
-        );
+    super.id,
+    required super.usuarioId,
+    super.usuarioNombre,
+    super.usuarioCorreo,
+    super.turno,
+    super.estado,
+  });
 
   factory GuardiaModel.fromJson(Map<String, dynamic> json) {
     String? usuarioNombre;

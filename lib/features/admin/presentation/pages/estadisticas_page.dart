@@ -1,7 +1,9 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:fl_chart/fl_chart.dart';
+
 import '../../../../core/config/theme.dart';
+import '../../../incidente/domain/entities/incidente.dart';
 import '../../../incidente/presentation/providers/incidente_provider.dart';
 
 class AdminEstadisticasPage extends StatefulWidget {
@@ -20,11 +22,21 @@ class _AdminEstadisticasPageState extends State<AdminEstadisticasPage> {
     });
   }
 
-  List<FlSpot> _lineChartData() {
+  List<FlSpot> _lineChartData(List<IncidenteEntity> incidentes) {
+    final now = DateTime.now();
     final spots = <FlSpot>[];
-    for (int i = 11; i >= 0; i--) {
-      spots.add(FlSpot((11 - i).toDouble(), (i * 3 + 5).toDouble()));
+
+    for (int offset = 5; offset >= 0; offset--) {
+      final targetMonth = DateTime(now.year, now.month - offset, 1);
+      final total = incidentes.where((incidente) {
+        final fecha = incidente.fecha;
+        return fecha != null &&
+            fecha.year == targetMonth.year &&
+            fecha.month == targetMonth.month;
+      }).length;
+      spots.add(FlSpot((5 - offset).toDouble(), total.toDouble()));
     }
+
     return spots;
   }
 
@@ -37,7 +49,7 @@ class _AdminEstadisticasPageState extends State<AdminEstadisticasPage> {
           title: 'Sin datos',
           titleStyle: const TextStyle(color: Colors.white, fontSize: 12),
           radius: 60,
-        )
+        ),
       ];
     }
 
@@ -50,26 +62,33 @@ class _AdminEstadisticasPageState extends State<AdminEstadisticasPage> {
     ];
 
     int idx = 0;
-    return tipos.entries.map((e) {
+    return tipos.entries.map((entry) {
       final color = colors[idx % colors.length];
       idx++;
       return PieChartSectionData(
         color: color,
-        value: e.value.toDouble(),
-        title: '${e.key}\n(${e.value})',
+        value: entry.value.toDouble(),
+        title: '${entry.key}\n(${entry.value})',
         titleStyle: const TextStyle(color: Colors.white, fontSize: 11),
         radius: 60,
       );
     }).toList();
   }
 
-  List<BarChartGroupData> _barChartData() {
-    return List.generate(6, (i) {
+  List<BarChartGroupData> _barChartData(List<IncidenteEntity> incidentes) {
+    final prioridades = ['Alta', 'Media', 'Baja'];
+
+    return List.generate(prioridades.length, (index) {
+      final prioridad = prioridades[index];
+      final total = incidentes
+          .where((incidente) => (incidente.prioridad ?? 'Media') == prioridad)
+          .length;
+
       return BarChartGroupData(
-        x: i,
+        x: index,
         barRods: [
           BarChartRodData(
-            toY: (i * 2 + 3).toDouble(),
+            toY: total.toDouble(),
             color: AppTheme.primaryColor,
             width: 18,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
@@ -77,6 +96,15 @@ class _AdminEstadisticasPageState extends State<AdminEstadisticasPage> {
         ],
       );
     });
+  }
+
+  double _resolvedRate(List<IncidenteEntity> incidentes) {
+    final cerrados = incidentes.where((incidente) {
+      return incidente.fecha != null && incidente.estado.toLowerCase() == 'cerrado';
+    }).length;
+
+    if (incidentes.isEmpty) return 0;
+    return (cerrados / incidentes.length) * 100;
   }
 
   @override
@@ -87,7 +115,11 @@ class _AdminEstadisticasPageState extends State<AdminEstadisticasPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final incidentes = incidenteProvider.todosIncidentes;
     final tipos = incidenteProvider.getIncidentesPorTipo();
+    final lineData = _lineChartData(incidentes);
+    final barData = _barChartData(incidentes);
+    final resueltos = _resolvedRate(incidentes);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -105,14 +137,19 @@ class _AdminEstadisticasPageState extends State<AdminEstadisticasPage> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Tiempo Promedio de Respuesta',
-                          style: TextStyle(color: Colors.white70, fontSize: 13)),
+                      const Text(
+                        'Casos resueltos',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                      ),
                       const SizedBox(height: 4),
-                      const Text('~12 min',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold)),
+                      Text(
+                        incidentes.isEmpty ? 'Sin datos' : '${resueltos.toStringAsFixed(0)}%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -120,8 +157,10 @@ class _AdminEstadisticasPageState extends State<AdminEstadisticasPage> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text('Incidentes por Mes',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Incidentes por mes',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
           Card(
             child: Padding(
@@ -136,46 +175,57 @@ class _AdminEstadisticasPageState extends State<AdminEstadisticasPage> {
                         sideTitles: SideTitles(
                           showTitles: true,
                           reservedSize: 30,
-                          getTitlesWidget: (value, meta) =>
-                              Text('${value.toInt()}',
-                                  style: const TextStyle(fontSize: 11)),
+                          getTitlesWidget: (value, meta) => Text(
+                            '${value.toInt()}',
+                            style: const TextStyle(fontSize: 11),
+                          ),
                         ),
                       ),
                       bottomTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
                           getTitlesWidget: (value, meta) {
-                            final months = [
-                              'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-                              'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+                            final now = DateTime.now();
+                            final targetMonth = DateTime(now.year, now.month - (5 - value.toInt()), 1);
+                            const months = [
+                              'Ene',
+                              'Feb',
+                              'Mar',
+                              'Abr',
+                              'May',
+                              'Jun',
+                              'Jul',
+                              'Ago',
+                              'Sep',
+                              'Oct',
+                              'Nov',
+                              'Dic',
                             ];
-                            final monthIdx =
-                                (DateTime.now().month - 6 + value.toInt())
-                                        .clamp(0, 11);
                             return Text(
-                                months[monthIdx % 12],
-                                style: const TextStyle(fontSize: 10));
+                              months[targetMonth.month - 1],
+                              style: const TextStyle(fontSize: 10),
+                            );
                           },
                         ),
                       ),
-                      rightTitles:
-                          AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      topTitles:
-                          AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
                     ),
                     borderData: FlBorderData(show: false),
                     lineBarsData: [
                       LineChartBarData(
-                        spots: _lineChartData(),
+                        spots: lineData,
                         color: AppTheme.primaryColor,
                         barWidth: 3,
                         isCurved: true,
-                        dotData:
-                            FlDotData(show: false),
+                        dotData: const FlDotData(show: false),
                         belowBarData: BarAreaData(
                           show: true,
-                          color:
-                              AppTheme.primaryColor.withValues(alpha: 0.1),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
                         ),
                       ),
                     ],
@@ -185,8 +235,10 @@ class _AdminEstadisticasPageState extends State<AdminEstadisticasPage> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text('Tipos de Emergencias',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Tipos de emergencias',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
           Card(
             child: Padding(
@@ -204,8 +256,10 @@ class _AdminEstadisticasPageState extends State<AdminEstadisticasPage> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text('Incidentes por Edificio',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Incidentes por prioridad',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
           Card(
             child: Padding(
@@ -220,31 +274,33 @@ class _AdminEstadisticasPageState extends State<AdminEstadisticasPage> {
                         sideTitles: SideTitles(
                           showTitles: true,
                           reservedSize: 30,
-                          getTitlesWidget: (value, meta) =>
-                              Text('${value.toInt()}',
-                                  style: const TextStyle(fontSize: 11)),
+                          getTitlesWidget: (value, meta) => Text(
+                            '${value.toInt()}',
+                            style: const TextStyle(fontSize: 11),
+                          ),
                         ),
                       ),
                       bottomTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
                           getTitlesWidget: (value, meta) {
-                            final labels = [
-                              'A', 'B', 'C', 'D', 'E', 'F'
-                            ];
+                            const labels = ['Alta', 'Media', 'Baja'];
                             return Text(
-                                labels[value.toInt() % labels.length],
-                                style: const TextStyle(fontSize: 10));
+                              labels[value.toInt() % labels.length],
+                              style: const TextStyle(fontSize: 10),
+                            );
                           },
                         ),
                       ),
-                      rightTitles:
-                          AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      topTitles:
-                          AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
                     ),
                     borderData: FlBorderData(show: false),
-                    barGroups: _barChartData(),
+                    barGroups: barData,
                   ),
                 ),
               ),

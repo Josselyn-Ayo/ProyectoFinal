@@ -2,18 +2,12 @@ import '../../domain/entities/edificio.dart';
 
 class EdificioModel extends EdificioEntity {
   EdificioModel({
-    String? id,
-    required String nombre,
-    String? descripcion,
-    double? latitud,
-    double? longitud,
-  }) : super(
-          id: id,
-          nombre: nombre,
-          descripcion: descripcion,
-          latitud: latitud,
-          longitud: longitud,
-        );
+    super.id,
+    required super.nombre,
+    super.descripcion,
+    super.latitud,
+    super.longitud,
+  });
 
   factory EdificioModel.fromJson(Map<String, dynamic> json) {
     return EdificioModel(

@@ -53,7 +53,7 @@ class _AdminGuardiasPageState extends State<AdminGuardiasPage> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: estado,
+                    initialValue: estado,
                     decoration: const InputDecoration(labelText: 'Estado'),
                     items: const [
                       DropdownMenuItem(
@@ -112,7 +112,7 @@ class _AdminGuardiasPageState extends State<AdminGuardiasPage> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: estado,
+                    initialValue: estado,
                     decoration: const InputDecoration(labelText: 'Estado'),
                     items: const [
                       DropdownMenuItem(
