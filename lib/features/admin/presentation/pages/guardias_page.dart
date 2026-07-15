@@ -24,72 +24,11 @@ class _AdminGuardiasPageState extends State<AdminGuardiasPage> {
     switch (estado) {
       case 'Disponible':
         return AppTheme.successColor;
-      case 'En servicio':
+      case 'Ocupado':
         return AppTheme.warningColor;
-      case 'Fuera de servicio':
-        return AppTheme.dangerColor;
       default:
         return Colors.grey;
     }
-  }
-
-  void _showCreateDialog() {
-    final turnoCtrl = TextEditingController();
-    String estado = 'Disponible';
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            return AlertDialog(
-              title: const Text('Registrar Guardia'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: turnoCtrl,
-                    decoration: const InputDecoration(labelText: 'Turno'),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: estado,
-                    decoration: const InputDecoration(labelText: 'Estado'),
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'Disponible', child: Text('Disponible')),
-                      DropdownMenuItem(
-                          value: 'En servicio', child: Text('En servicio')),
-                      DropdownMenuItem(
-                          value: 'Fuera de servicio',
-                          child: Text('Fuera de servicio')),
-                    ],
-                    onChanged: (v) =>
-                        setDialogState(() => estado = v ?? 'Disponible'),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Cancelar')),
-                ElevatedButton(
-                  onPressed: () {
-                    context.read<GuardiaProvider>().registrarGuardia(
-                          usuarioId: '',
-                          turno: turnoCtrl.text.trim(),
-                          estado: estado,
-                        );
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text('Registrar'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
   }
 
   void _showEditDialog(GuardiaEntity guardia) {
@@ -117,11 +56,7 @@ class _AdminGuardiasPageState extends State<AdminGuardiasPage> {
                     items: const [
                       DropdownMenuItem(
                           value: 'Disponible', child: Text('Disponible')),
-                      DropdownMenuItem(
-                          value: 'En servicio', child: Text('En servicio')),
-                      DropdownMenuItem(
-                          value: 'Fuera de servicio',
-                          child: Text('Fuera de servicio')),
+                      DropdownMenuItem(value: 'Ocupado', child: Text('Ocupado')),
                     ],
                     onChanged: (v) =>
                         setDialogState(() => estado = v ?? 'Disponible'),
@@ -151,6 +86,7 @@ class _AdminGuardiasPageState extends State<AdminGuardiasPage> {
     );
   }
 
+  // ignore: unused_element
   void _showDeleteDialog(GuardiaEntity guardia) {
     showDialog(
       context: context,
@@ -207,15 +143,6 @@ class _AdminGuardiasPageState extends State<AdminGuardiasPage> {
                     _showEditDialog(guardia);
                   },
                 ),
-                ListTile(
-                  leading:
-                      const Icon(Icons.delete, color: AppTheme.dangerColor),
-                  title: const Text('Eliminar'),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _showDeleteDialog(guardia);
-                  },
-                ),
               ],
             ),
           ),
@@ -241,6 +168,10 @@ class _AdminGuardiasPageState extends State<AdminGuardiasPage> {
             SizedBox(height: 16),
             Text('No hay guardias registrados',
                 style: TextStyle(color: Colors.grey, fontSize: 16)),
+            SizedBox(height: 8),
+            Text('Crea un usuario con rol Seguridad para agregarlo automaticamente.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 13)),
           ],
         ),
       );
@@ -281,11 +212,6 @@ class _AdminGuardiasPageState extends State<AdminGuardiasPage> {
             ),
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateDialog,
-        backgroundColor: AppTheme.primaryColor,
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

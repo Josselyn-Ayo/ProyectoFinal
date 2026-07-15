@@ -18,12 +18,15 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final _mensajeCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
+  late final Stream<List<MensajeEntity>> _mensajesStream;
 
   @override
   void initState() {
     super.initState();
+    final chatProvider = context.read<ChatProvider>();
+    _mensajesStream = chatProvider.streamMensajes(widget.incidenteId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ChatProvider>().getMensajes(widget.incidenteId);
+      chatProvider.getMensajes(widget.incidenteId);
     });
   }
 
@@ -65,11 +68,49 @@ class _ChatPageState extends State<ChatPage> {
         children: [
           Expanded(
             child: StreamBuilder<List<MensajeEntity>>(
-              stream: chatProvider.streamMensajes(widget.incidenteId),
+              stream: _mensajesStream,
               builder: (context, snapshot) {
+                if (snapshot.hasError && chatProvider.mensajes.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 48, color: Colors.red),
+                        const SizedBox(height: 8),
+                        Text('Error al cargar chat: ${snapshot.error}'),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            context
+                                .read<ChatProvider>()
+                                .getMensajes(widget.incidenteId);
+                          },
+                          child: const Text('Reintentar'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
                 final mensajes = snapshot.data ?? [];
 
                 if (mensajes.isEmpty) {
+                  final cachedMensajes = chatProvider.mensajes;
+                  if (cachedMensajes.isNotEmpty) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (_scrollCtrl.hasClients) {
+                        _scrollCtrl.animateTo(
+                          _scrollCtrl.position.maxScrollExtent,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                        );
+                      }
+                    });
+
+                    return _buildMensajesList(cachedMensajes, authProvider.userId);
+                  }
+
                   return const Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -94,77 +135,7 @@ class _ChatPageState extends State<ChatPage> {
                   }
                 });
 
-                return ListView.builder(
-                  controller: _scrollCtrl,
-                  padding: const EdgeInsets.all(12),
-                  itemCount: mensajes.length,
-                  itemBuilder: (_, i) {
-                    final msg = mensajes[i];
-                    final esMio = msg.emisorId == authProvider.userId;
-
-                    return Align(
-                      alignment:
-                          esMio ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                        constraints:
-                            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-                        decoration: BoxDecoration(
-                          color: esMio
-                              ? AppTheme.primaryColor
-                              : Colors.grey[300],
-                          borderRadius: BorderRadius.only(
-                            topLeft: const Radius.circular(16),
-                            topRight: const Radius.circular(16),
-                            bottomLeft:
-                                Radius.circular(esMio ? 16 : 4),
-                            bottomRight:
-                                Radius.circular(esMio ? 4 : 16),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (msg.emisorNombre != null)
-                              Text(
-                                msg.emisorNombre!,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: esMio
-                                      ? Colors.white70
-                                      : Colors.grey[600],
-                                ),
-                              ),
-                            const SizedBox(height: 2),
-                            Text(
-                              msg.mensaje,
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: esMio ? Colors.white : Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Align(
-                              alignment: Alignment.bottomRight,
-                              child: Text(
-                                _formatTime(msg.fecha),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: esMio
-                                      ? Colors.white60
-                                      : Colors.grey[500],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
+                return _buildMensajesList(mensajes, authProvider.userId);
               },
             ),
           ),
@@ -211,6 +182,70 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMensajesList(List<MensajeEntity> mensajes, String? userId) {
+    return ListView.builder(
+      controller: _scrollCtrl,
+      padding: const EdgeInsets.all(12),
+      itemCount: mensajes.length,
+      itemBuilder: (_, i) {
+        final msg = mensajes[i];
+        final esMio = msg.emisorId == userId;
+
+        return Align(
+          alignment: esMio ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            constraints:
+                BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+            decoration: BoxDecoration(
+              color: esMio ? AppTheme.primaryColor : Colors.grey[300],
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(16),
+                topRight: const Radius.circular(16),
+                bottomLeft: Radius.circular(esMio ? 16 : 4),
+                bottomRight: Radius.circular(esMio ? 4 : 16),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (msg.emisorNombre != null)
+                  Text(
+                    msg.emisorNombre!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: esMio ? Colors.white70 : Colors.grey[600],
+                    ),
+                  ),
+                const SizedBox(height: 2),
+                Text(
+                  msg.mensaje,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: esMio ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: Text(
+                    _formatTime(msg.fecha),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: esMio ? Colors.white60 : Colors.grey[500],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

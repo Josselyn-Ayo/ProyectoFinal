@@ -14,6 +14,17 @@ abstract class AuthRemoteDataSource {
   Future<UserModel> getUserById(String id);
   Future<List<UserModel>> getAllUsers();
   Future<void> updateUser(UserModel user);
+  Future<void> createAdminUser({
+    required String email,
+    required String password,
+    required String nombre,
+    required String apellido,
+    required String rol,
+    String? telefono,
+    String? facultad,
+    String? carrera,
+  });
+  Future<void> updateAdminUser(UserModel user);
   Future<void> deleteUser(String id);
   User? get authUser;
   Stream<AuthState> get authStateChanges;
@@ -153,11 +164,62 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
+  Future<void> createAdminUser({
+    required String email,
+    required String password,
+    required String nombre,
+    required String apellido,
+    required String rol,
+    String? telefono,
+    String? facultad,
+    String? carrera,
+  }) async {
+    await _invokeAdminUsers({
+      'action': 'create',
+      'user': {
+        'email': email,
+        'password': password,
+        'nombre': nombre,
+        'apellido': apellido,
+        'rol': rol,
+        'telefono': telefono,
+        'facultad': facultad,
+        'carrera': carrera,
+      },
+    });
+  }
+
+  @override
+  Future<void> updateAdminUser(UserModel user) async {
+    await _invokeAdminUsers({
+      'action': 'update',
+      'user': {
+        ...user.toJson(),
+        'email': user.correo,
+      },
+    });
+  }
+
+  @override
   Future<void> deleteUser(String id) async {
     try {
-      await client.from('usuarios').delete().eq('id', id);
+      await _invokeAdminUsers({
+        'action': 'delete',
+        'user': {'id': id},
+      });
     } catch (e) {
       throw ServerException(_extractErrorMessage(e));
+    }
+  }
+
+  Future<void> _invokeAdminUsers(Map<String, dynamic> body) async {
+    try {
+      final response = await client.functions.invoke('admin-users', body: body);
+      if (response.data is Map && response.data['error'] != null) {
+        throw ServerException(response.data['error'].toString());
+      }
+    } on FunctionException catch (e) {
+      throw ServerException(e.details ?? e.reasonPhrase ?? 'Error al gestionar usuario');
     }
   }
 

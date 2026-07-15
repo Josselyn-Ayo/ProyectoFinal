@@ -33,10 +33,10 @@ class GuardiaModel extends GuardiaEntity {
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toJson({bool includeUsuarioId = true}) {
     return {
       if (id != null) 'id': id,
-      'usuario_id': usuarioId,
+      if (includeUsuarioId) 'usuario_id': usuarioId,
       'turno': turno,
       'estado': estado,
     };

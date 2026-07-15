@@ -94,19 +94,15 @@ class _EmergenciasPageState extends State<EmergenciasPage>
                     onPressed: miGuardia == null
                         ? null
                         : () async {
-                      await incidenteProvider.actualizarEstado(
-                        incidente.id,
-                        'Guardia asignado',
-                        guardiaId: miGuardia.id,
-                      );
-                      if (miGuardia.id != null) {
-                        await guardiaProvider.actualizarEstado(
-                          guardiaId: miGuardia.id!,
-                          estado: 'Ocupado',
-                        );
-                      }
+                      final accepted = await incidenteProvider
+                          .reclamarIncidente(incidente.id);
                       if (ctx.mounted) {
                         Navigator.pop(ctx);
+                        if (!accepted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(incidenteProvider.error ?? 'El caso ya no esta disponible')),
+                          );
+                        }
                       }
                     },
                     icon: const Icon(Icons.check_circle),

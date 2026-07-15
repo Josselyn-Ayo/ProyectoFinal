@@ -1,8 +1,5 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/config/theme.dart';
@@ -18,151 +15,139 @@ class SosPage extends StatefulWidget {
 }
 
 class _SosPageState extends State<SosPage> {
-  final _descripcionController = TextEditingController();
   final _ubicacionReferenciaController = TextEditingController();
-  String _tipoSeleccionado = 'robo';
-  File? _foto;
+  final _descripcionController = TextEditingController();
+
   double? _latitud;
   double? _longitud;
-  bool _obteniendoUbicacion = false;
+  bool _obteniendoUbicacion = true;
   bool _enviando = false;
   bool _anonimo = false;
+  String? _ubicacionError;
 
-  final _tiposEmergencia = {
-    'robo': 'Robo',
-    'acoso': 'Acoso',
-    'emergencia_medica': 'Emergencia medica',
-    'incendio': 'Incendio',
-    'accidente': 'Accidente',
-    'persona_sospechosa': 'Persona sospechosa',
-    'otro': 'Otro',
-  };
+  @override
+  void initState() {
+    super.initState();
+    _obtenerUbicacion();
+  }
 
   @override
   void dispose() {
-    _descripcionController.dispose();
     _ubicacionReferenciaController.dispose();
+    _descripcionController.dispose();
     super.dispose();
   }
 
   Future<void> _obtenerUbicacion() async {
-    setState(() => _obteniendoUbicacion = true);
+    setState(() {
+      _obteniendoUbicacion = true;
+      _ubicacionError = null;
+    });
 
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('El GPS esta desactivado')),
-          );
-        }
-        setState(() => _obteniendoUbicacion = false);
+        setState(() {
+          _obteniendoUbicacion = false;
+          _ubicacionError = 'GPS desactivado';
+        });
         return;
       }
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Permiso de ubicacion denegado')),
-            );
-          }
-          setState(() => _obteniendoUbicacion = false);
-          return;
-        }
       }
 
-      if (permission == LocationPermission.deniedForever) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Permiso de ubicacion denegado permanentemente'),
-            ),
-          );
-        }
-        setState(() => _obteniendoUbicacion = false);
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        setState(() {
+          _obteniendoUbicacion = false;
+          _ubicacionError = 'Permiso de ubicacion no disponible';
+        });
         return;
       }
 
-      final position = await Geolocator.getCurrentPosition();
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 12),
+        ),
+      );
 
+      if (!mounted) return;
       setState(() {
         _latitud = position.latitude;
         _longitud = position.longitude;
         _obteniendoUbicacion = false;
       });
     } catch (e) {
-      setState(() => _obteniendoUbicacion = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al obtener ubicacion: $e')),
-        );
-      }
+      if (!mounted) return;
+      setState(() {
+        _obteniendoUbicacion = false;
+        _ubicacionError = 'No se pudo obtener ubicacion';
+      });
     }
   }
 
-  Future<void> _seleccionarFoto() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 70,
-    );
-
-    if (pickedFile != null) {
-      setState(() => _foto = File(pickedFile.path));
-    }
-  }
-
-  Future<void> _enviarEmergencia() async {
+  Future<void> _activarSos() async {
     if (_enviando) return;
 
+    FocusScope.of(context).unfocus();
     setState(() => _enviando = true);
 
+    final referencia = _ubicacionReferenciaController.text.trim();
+    final detalle = _descripcionController.text.trim();
+    final ubicacionTexto = _latitud != null && _longitud != null
+        ? 'Ubicacion GPS: $_latitud, $_longitud.'
+        : 'Ubicacion GPS no disponible. Revisar referencia del usuario.';
+
+    final descripcion = [
+      'ALERTA SOS ACTIVADA. El estudiante solicita ayuda inmediata.',
+      ubicacionTexto,
+      if (referencia.isNotEmpty) 'Referencia: $referencia.',
+      if (detalle.isNotEmpty) 'Detalle adicional: $detalle.',
+    ].join(' ');
+
     final provider = context.read<IncidenteProvider>();
-    final exito = await provider.crearIncidente(
+    final incidente = await provider.crearIncidente(
       usuarioId: widget.usuarioId,
-      tipo: _tipoSeleccionado,
-      descripcion: _descripcionController.text.isNotEmpty
-          ? _descripcionController.text
-          : null,
+      tipo: 'sos',
+      descripcion: descripcion,
       latitud: _latitud,
       longitud: _longitud,
-      foto: _foto?.path,
+      prioridad: 'Alta',
       anonimo: _anonimo,
-      ubicacionReferencia: _ubicacionReferenciaController.text.trim().isEmpty
-          ? null
-          : _ubicacionReferenciaController.text.trim(),
+      ubicacionReferencia: referencia.isEmpty ? 'SOS inmediato' : referencia,
     );
-
-    setState(() => _enviando = false);
 
     if (!mounted) return;
 
-    if (exito) {
-      showDialog(
+    setState(() => _enviando = false);
+
+    if (incidente != null) {
+      await showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Row(
             children: [
-              Icon(Icons.check_circle, color: AppTheme.successColor, size: 28),
+              Icon(Icons.shield, color: AppTheme.successColor),
               SizedBox(width: 8),
-              Text('Emergencia enviada'),
+              Expanded(child: Text('SOS enviado')),
             ],
           ),
           content: const Text(
-            'Tu reporte ha sido recibido. Seguridad universitaria podra seguirlo y atenderlo de inmediato.',
+            'Seguridad universitaria recibio una alerta critica con tu ubicacion. Mantente en un lugar seguro si puedes.',
           ),
           actions: [
-            TextButton(
+            FilledButton(
               onPressed: () {
                 Navigator.of(ctx).pop();
                 Navigator.of(context).pop();
               },
-              child: const Text('Aceptar'),
+              child: const Text('Entendido'),
             ),
           ],
         ),
@@ -170,7 +155,7 @@ class _SosPageState extends State<SosPage> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(provider.error ?? 'Error al enviar la emergencia'),
+          content: Text(provider.error ?? 'No se pudo enviar el SOS'),
           backgroundColor: AppTheme.dangerColor,
         ),
       );
@@ -179,189 +164,214 @@ class _SosPageState extends State<SosPage> {
 
   @override
   Widget build(BuildContext context) {
+    final hasLocation = _latitud != null && _longitud != null;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SOS - Emergencia'),
+        title: const Text('SOS'),
         backgroundColor: AppTheme.dangerColor,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: AppTheme.dangerColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: AppTheme.dangerColor.withValues(alpha: 0.3),
+                  color: AppTheme.dangerColor.withValues(alpha: 0.35),
                 ),
               ),
-              child: const Row(
+              child: Column(
                 children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
+                  const Icon(
+                    Icons.emergency_share,
                     color: AppTheme.dangerColor,
-                    size: 24,
+                    size: 56,
                   ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Usa este boton solo ante una emergencia real. El sistema registrara evidencia, ubicacion y seguimiento.',
-                      style: TextStyle(
-                        color: AppTheme.dangerColor,
-                        fontWeight: FontWeight.w500,
-                      ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Alerta de emergencia',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    hasLocation
+                        ? 'Tu ubicacion esta lista para enviarse a seguridad.'
+                        : 'Puedes activar SOS ahora. Si el GPS no esta listo, se enviara la alerta y tu referencia.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[700]),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            SwitchListTile(
-              value: _anonimo,
-              onChanged: (value) => setState(() => _anonimo = value),
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Enviar como reporte anonimo'),
-              subtitle: const Text(
-                'Ideal para acoso, amenazas o situaciones sensibles.',
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Tipo de emergencia',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _tipoSeleccionado,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.category)),
-              items: _tiposEmergencia.entries
-                  .map((entry) => DropdownMenuItem(
-                        value: entry.key,
-                        child: Text(entry.value),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _tipoSeleccionado = value);
-                }
-              },
-            ),
             const SizedBox(height: 16),
-            const Text(
-              'Descripcion',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _descripcionController,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                hintText: 'Describe la emergencia...',
-                alignLabelWithHint: true,
-              ),
+            _LocationStatus(
+              loading: _obteniendoUbicacion,
+              latitude: _latitud,
+              longitude: _longitud,
+              error: _ubicacionError,
+              onRetry: _obtenerUbicacion,
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _ubicacionReferenciaController,
               decoration: const InputDecoration(
-                labelText: 'Referencia del campus',
-                hintText: 'Ej. Bloque A, entrada principal, biblioteca',
+                labelText: 'Referencia rapida opcional',
+                hintText: 'Ej. Biblioteca, FIEE, entrada principal',
                 prefixIcon: Icon(Icons.place_outlined),
               ),
+              textInputAction: TextInputAction.next,
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _seleccionarFoto,
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('Adjuntar foto'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _obteniendoUbicacion ? null : _obtenerUbicacion,
-                    icon: _obteniendoUbicacion
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.location_on),
-                    label: Text(
-                      _latitud != null ? 'Ubicacion lista' : 'Obtener ubicacion',
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (_foto != null) ...[
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Stack(
-                  children: [
-                    Image.file(
-                      _foto!,
-                      height: 150,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: IconButton(
-                        onPressed: () => setState(() => _foto = null),
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.black45,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _descripcionController,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Detalle opcional',
+                hintText: 'Ej. me siguen, accidente, necesito ayuda medica',
+                prefixIcon: Icon(Icons.notes_outlined),
               ),
-            ],
-            const SizedBox(height: 32),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              value: _anonimo,
+              onChanged: _enviando
+                  ? null
+                  : (value) => setState(() => _anonimo = value),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Enviar como anonimo'),
+              subtitle: const Text('Seguridad recibira la alerta del caso.'),
+            ),
+            const SizedBox(height: 20),
             SizedBox(
-              height: 56,
+              height: 68,
               child: ElevatedButton.icon(
-                onPressed: _enviando ? null : _enviarEmergencia,
+                onPressed: _enviando ? null : _activarSos,
                 icon: _enviando
                     ? const SizedBox(
-                        width: 22,
-                        height: 22,
+                        width: 24,
+                        height: 24,
                         child: CircularProgressIndicator(
-                          strokeWidth: 2,
                           color: Colors.white,
+                          strokeWidth: 2.5,
                         ),
                       )
-                    : const Icon(Icons.warning, size: 28),
+                    : const Icon(Icons.sos, size: 34),
                 label: Text(
-                  _enviando ? 'ENVIANDO...' : 'ENVIAR EMERGENCIA',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  _enviando ? 'ENVIANDO SOS...' : 'ACTIVAR SOS AHORA',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.dangerColor,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            Text(
+              'Se creara un incidente critico de prioridad alta para el equipo de seguridad.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _LocationStatus extends StatelessWidget {
+  final bool loading;
+  final double? latitude;
+  final double? longitude;
+  final String? error;
+  final VoidCallback onRetry;
+
+  const _LocationStatus({
+    required this.loading,
+    required this.latitude,
+    required this.longitude,
+    required this.error,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLocation = latitude != null && longitude != null;
+    final color = hasLocation
+        ? AppTheme.successColor
+        : error != null
+            ? AppTheme.dangerColor
+            : AppTheme.warningColor;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          if (loading)
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            )
+          else
+            Icon(
+              hasLocation ? Icons.my_location : Icons.location_off,
+              color: color,
+              size: 30,
+            ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  loading
+                      ? 'Obteniendo ubicacion...'
+                      : hasLocation
+                          ? 'Ubicacion detectada'
+                          : error ?? 'Ubicacion pendiente',
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  hasLocation
+                      ? '${latitude!.toStringAsFixed(6)}, ${longitude!.toStringAsFixed(6)}'
+                      : 'El SOS puede enviarse de todas formas.',
+                  style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          if (!loading && !hasLocation)
+            IconButton(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Reintentar ubicacion',
+            ),
+        ],
       ),
     );
   }

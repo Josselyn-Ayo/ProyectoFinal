@@ -53,9 +53,15 @@ class ChatProvider extends ChangeNotifier {
       emisorId: emisorId,
       mensaje: mensaje,
     ));
+    await cargarMensajes(incidenteId);
   }
 
   Stream<List<MensajeEntity>> streamMensajes(String incidenteId) {
-    return _chatRepository.streamMensajes(incidenteId);
+    return _chatRepository.streamMensajes(incidenteId).map((mensajes) {
+      _mensajes = mensajes;
+      _error = null;
+      Future.microtask(notifyListeners);
+      return mensajes;
+    });
   }
 }

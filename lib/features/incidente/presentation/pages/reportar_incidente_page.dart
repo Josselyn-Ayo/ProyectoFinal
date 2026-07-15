@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/config/theme.dart';
+import '../../../../core/services/evidencia_storage_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/incidente_provider.dart';
 
@@ -61,13 +62,13 @@ class _ReportarIncidentePageState extends State<ReportarIncidentePage> {
     final authProvider = context.read<AuthProvider>();
     final incidenteProvider = context.read<IncidenteProvider>();
 
-    final exito = await incidenteProvider.crearIncidente(
+    final incidente = await incidenteProvider.crearIncidente(
       usuarioId: authProvider.userId,
       tipo: _tipoSeleccionado,
       descripcion: _descripcionController.text.isNotEmpty
           ? _descripcionController.text
           : null,
-      foto: _foto?.path,
+      foto: null,
       anonimo: _anonimo,
       ubicacionReferencia: _ubicacionReferenciaController.text.trim().isEmpty
           ? null
@@ -78,7 +79,22 @@ class _ReportarIncidentePageState extends State<ReportarIncidentePage> {
 
     if (!mounted) return;
 
-    if (exito) {
+    if (incidente != null) {
+      if (_foto != null && authProvider.userId != null) {
+        try {
+          await EvidenciaStorageService().subirFoto(
+            archivo: _foto!,
+            incidenteId: incidente.id,
+            usuarioId: authProvider.userId!,
+          );
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('El reporte se envio, pero la evidencia no pudo cargarse.')),
+            );
+          }
+        }
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Incidente reportado exitosamente'),

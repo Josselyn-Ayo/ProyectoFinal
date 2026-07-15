@@ -1,13 +1,14 @@
 import '../entities/incidente.dart';
 
 abstract class IncidenteRepository {
-  Future<void> crearIncidente({
+  Future<IncidenteEntity> crearIncidente({
     String? usuarioId,
     required String tipo,
     String? descripcion,
     double? latitud,
     double? longitud,
     String? foto,
+    String? prioridad,
     bool anonimo = false,
     String? ubicacionReferencia,
   });
@@ -24,6 +25,7 @@ abstract class IncidenteRepository {
     String? guardiaId,
     String? respuesta,
   });
+  Future<void> reclamarIncidente(String incidenteId);
 
   Future<void> actualizarPrioridad(String incidenteId, String prioridad);
 

@@ -251,7 +251,7 @@ class _SummaryCard extends StatelessWidget {
             Text(
               title,
               style: const TextStyle(
-                color: Colors.white70,
+                color: Colors.white,
                 fontSize: 12,
                 height: 1.2,
               ),

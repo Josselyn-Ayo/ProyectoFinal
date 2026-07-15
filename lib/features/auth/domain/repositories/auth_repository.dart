@@ -24,6 +24,19 @@ abstract class AuthRepository {
 
   Future<void> updateUser(UserEntity user);
 
+  Future<void> createAdminUser({
+    required String email,
+    required String password,
+    required String nombre,
+    required String apellido,
+    required String rol,
+    String? telefono,
+    String? facultad,
+    String? carrera,
+  });
+
+  Future<void> updateAdminUser(UserEntity user);
+
   Future<void> deleteUser(String id);
 
   Future<void> logout();

@@ -70,7 +70,8 @@ class CampusMapWidget extends StatelessWidget {
     ];
 
     if (points.isEmpty) {
-      return const LatLng(4.6286, -74.0658);
+      // Campus principal Jose Ruben Orellana de la EPN, Quito.
+      return const LatLng(-0.210145, -78.488712);
     }
 
     final lat = points.map((point) => point.latitude).reduce((a, b) => a + b) /

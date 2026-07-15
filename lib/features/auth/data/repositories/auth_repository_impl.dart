@@ -112,6 +112,49 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<void> createAdminUser({
+    required String email,
+    required String password,
+    required String nombre,
+    required String apellido,
+    required String rol,
+    String? telefono,
+    String? facultad,
+    String? carrera,
+  }) async {
+    await dataSource.createAdminUser(
+      email: email,
+      password: password,
+      nombre: nombre,
+      apellido: apellido,
+      rol: rol,
+      telefono: telefono,
+      facultad: facultad,
+      carrera: carrera,
+    );
+  }
+
+  @override
+  Future<void> updateAdminUser(UserEntity user) async {
+    final model = user is UserModel
+        ? user
+        : UserModel(
+            id: user.id,
+            nombre: user.nombre,
+            apellido: user.apellido,
+            correo: user.correo,
+            telefono: user.telefono,
+            rol: user.rol,
+            facultad: user.facultad,
+            carrera: user.carrera,
+            foto: user.foto,
+            contactoEmergencia: user.contactoEmergencia,
+            createdAt: user.createdAt,
+          );
+    await dataSource.updateAdminUser(model);
+  }
+
+  @override
   Future<void> deleteUser(String id) async {
     try {
       await dataSource.deleteUser(id);

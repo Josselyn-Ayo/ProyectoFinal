@@ -20,7 +20,7 @@ class MensajeModel extends MensajeEntity {
     return MensajeModel(
       id: json['id'] as String,
       incidenteId: json['incidente_id'] as String,
-      emisorId: json['emisor_id'] as String,
+      emisorId: json['emisor_id'] as String? ?? '',
       emisorNombre: emisorNombre,
       mensaje: json['mensaje'] as String,
       fecha: json['fecha'] != null
@@ -45,4 +45,17 @@ class MensajeModel extends MensajeEntity {
         mensaje: mensaje,
         fecha: fecha,
       );
+
+  MensajeModel copyWith({
+    String? emisorNombre,
+  }) {
+    return MensajeModel(
+      id: id,
+      incidenteId: incidenteId,
+      emisorId: emisorId,
+      emisorNombre: emisorNombre ?? this.emisorNombre,
+      mensaje: mensaje,
+      fecha: fecha,
+    );
+  }
 }

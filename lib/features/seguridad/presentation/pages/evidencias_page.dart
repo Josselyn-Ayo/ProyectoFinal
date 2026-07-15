@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/config/theme.dart';
+import '../../../../core/services/evidencia_storage_service.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../incidente/presentation/providers/incidente_provider.dart';
 import '../../../guardia/presentation/providers/guardia_provider.dart';
 import '../../../incidente/domain/entities/incidente.dart';
@@ -29,6 +33,13 @@ class _EvidenciasPageState extends State<EvidenciasPage> {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.camera);
       if (image != null && mounted) {
+        final userId = context.read<AuthProvider>().userId;
+        if (userId == null) throw StateError('Sesion no valida');
+        await EvidenciaStorageService().subirFoto(
+          archivo: File(image.path),
+          incidenteId: incidente.id,
+          usuarioId: userId,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content:

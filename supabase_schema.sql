@@ -93,6 +93,7 @@ CREATE INDEX idx_mensajes_fecha ON mensajes(fecha ASC);
 CREATE INDEX idx_alertas_fecha ON alertas(fecha DESC);
 CREATE INDEX idx_guardias_usuario ON guardias(usuario_id);
 CREATE INDEX idx_guardias_estado ON guardias(estado);
+CREATE UNIQUE INDEX idx_guardias_usuario_unico ON guardias(usuario_id);
 
 -- ============================================
 -- SINCRONIZACION auth.users -> usuarios
@@ -121,7 +122,7 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'apellido', ''),
     NEW.email,
     NEW.raw_user_meta_data->>'telefono',
-    COALESCE(NULLIF(NEW.raw_user_meta_data->>'rol', ''), 'estudiante'),
+    'estudiante',
     NEW.raw_user_meta_data->>'facultad',
     NEW.raw_user_meta_data->>'carrera',
     NEW.raw_user_meta_data->>'contacto_emergencia'
@@ -155,12 +156,43 @@ SELECT
   COALESCE(au.raw_user_meta_data->>'apellido', ''),
   au.email,
   au.raw_user_meta_data->>'telefono',
-  COALESCE(NULLIF(au.raw_user_meta_data->>'rol', ''), 'estudiante'),
+  'estudiante',
   au.raw_user_meta_data->>'facultad',
   au.raw_user_meta_data->>'carrera',
   au.raw_user_meta_data->>'contacto_emergencia'
 FROM auth.users au
 ON CONFLICT (id) DO NOTHING;
+
+-- Cada usuario de seguridad necesita un perfil operativo de guardia.
+CREATE OR REPLACE FUNCTION public.sync_guardia_from_usuario()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.rol = 'seguridad' THEN
+    INSERT INTO public.guardias (usuario_id, estado)
+    VALUES (NEW.id, 'Disponible')
+    ON CONFLICT (usuario_id) DO NOTHING;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_usuario_seguridad ON public.usuarios;
+CREATE TRIGGER on_usuario_seguridad
+  AFTER INSERT OR UPDATE OF rol ON public.usuarios
+  FOR EACH ROW
+  EXECUTE FUNCTION public.sync_guardia_from_usuario();
+
+-- Completa los perfiles operativos para usuarios de seguridad ya existentes.
+INSERT INTO public.guardias (usuario_id, estado)
+SELECT id, 'Disponible'
+FROM public.usuarios
+WHERE rol = 'seguridad'
+ON CONFLICT (usuario_id) DO NOTHING;
 
 -- ============================================
 -- POLITICAS RLS (Row Level Security)

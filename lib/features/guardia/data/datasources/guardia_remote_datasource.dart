@@ -61,7 +61,7 @@ class GuardiaRemoteDataSourceImpl implements GuardiaRemoteDataSource {
     try {
       final response = await client
           .from('guardias')
-          .update(guardia.toJson())
+          .update(guardia.toJson(includeUsuarioId: false))
           .eq('id', id)
           .select()
           .single();

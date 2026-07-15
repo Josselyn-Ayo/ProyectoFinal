@@ -298,7 +298,7 @@ class _SummaryCard extends StatelessWidget {
             ),
             Text(
               title,
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
+              style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
           ],
         ),

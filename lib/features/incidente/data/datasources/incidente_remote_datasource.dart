@@ -6,8 +6,9 @@ class IncidenteRemoteDatasource {
 
   IncidenteRemoteDatasource({required this.client});
 
-  Future<void> crearIncidente(Map<String, dynamic> data) async {
-    await client.from('incidentes').insert(data);
+  Future<IncidenteModel> crearIncidente(Map<String, dynamic> data) async {
+    final response = await client.from('incidentes').insert(data).select().single();
+    return IncidenteModel.fromJson(response);
   }
 
   Future<List<IncidenteModel>> getIncidentesUsuario(String usuarioId) async {
@@ -50,6 +51,12 @@ class IncidenteRemoteDatasource {
     required Map<String, dynamic> data,
   }) async {
     await client.from('incidentes').update(data).eq('id', incidenteId);
+  }
+
+  Future<void> reclamarIncidente(String incidenteId) async {
+    await client.rpc('reclamar_incidente', params: {
+      'p_incidente_id': incidenteId,
+    });
   }
 
   Future<void> actualizarPrioridad(String incidenteId, String prioridad) async {

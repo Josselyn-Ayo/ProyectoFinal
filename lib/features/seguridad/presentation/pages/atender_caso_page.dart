@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/config/theme.dart';
+import '../../../../core/services/evidencia_storage_service.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/widgets/campus_map_widget.dart';
 import '../../../incidente/domain/entities/incidente.dart';
 import '../../../incidente/presentation/providers/incidente_provider.dart';
@@ -114,6 +118,13 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.camera);
       if (image != null && mounted) {
+        final userId = context.read<AuthProvider>().userId;
+        if (userId == null) throw StateError('Sesion no valida');
+        await EvidenciaStorageService().subirFoto(
+          archivo: File(image.path),
+          incidenteId: _incidente.id,
+          usuarioId: userId,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Evidencia subida correctamente')),
         );
@@ -301,23 +312,24 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
                   if (_incidente.estado == 'Reportado')
                     ElevatedButton.icon(
                       onPressed: () async {
-                        context.read<IncidenteProvider>().actualizarEstado(
-                              _incidente.id,
-                              'Guardia asignado',
+                        final accepted = await context
+                            .read<IncidenteProvider>()
+                            .reclamarIncidente(_incidente.id);
+                        if (!mounted) return;
+                        if (accepted) {
+                          setState(() {
+                            _incidente = _incidente.copyWith(
+                              estado: 'Guardia asignado',
                               guardiaId: miGuardia?.id,
                             );
-                        if (miGuardia?.id != null) {
-                          await context.read<GuardiaProvider>().actualizarEstado(
-                                guardiaId: miGuardia!.id!,
-                                estado: 'Ocupado',
-                              );
-                        }
-                        setState(() {
-                          _incidente = _incidente.copyWith(
-                            estado: 'Guardia asignado',
-                            guardiaId: miGuardia?.id,
+                          });
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(context.read<IncidenteProvider>().error ?? 'El caso ya no esta disponible'),
+                            ),
                           );
-                        });
+                        }
                       },
                       icon: const Icon(Icons.check_circle),
                       label: const Text('Aceptar Caso'),

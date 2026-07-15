@@ -65,13 +65,14 @@ class IncidenteProvider extends ChangeNotifier {
     return map;
   }
 
-  Future<bool> crearIncidente({
+  Future<IncidenteEntity?> crearIncidente({
     String? usuarioId,
     required String tipo,
     String? descripcion,
     double? latitud,
     double? longitud,
     String? foto,
+    String? prioridad,
     bool anonimo = false,
     String? ubicacionReferencia,
   }) async {
@@ -80,24 +81,25 @@ class IncidenteProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _crearIncidenteUseCase(CrearIncidenteParams(
+      final incidente = await _crearIncidenteUseCase(CrearIncidenteParams(
         usuarioId: usuarioId,
         tipo: tipo,
         descripcion: descripcion,
         latitud: latitud,
         longitud: longitud,
         foto: foto,
+        prioridad: prioridad,
         anonimo: anonimo,
         ubicacionReferencia: ubicacionReferencia,
       ));
       _loading = false;
       notifyListeners();
-      return true;
+      return incidente;
     } catch (e) {
       _error = e.toString();
       _loading = false;
       notifyListeners();
-      return false;
+      return null;
     }
   }
 
@@ -163,6 +165,18 @@ class IncidenteProvider extends ChangeNotifier {
         cargarIncidentesActivos(),
         cargarTodosIncidentes(),
       ]);
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> reclamarIncidente(String incidenteId) async {
+    try {
+      await _crearIncidenteUseCase.repository.reclamarIncidente(incidenteId);
+      await Future.wait([cargarIncidentesActivos(), cargarTodosIncidentes()]);
       return true;
     } catch (e) {
       _error = e.toString();

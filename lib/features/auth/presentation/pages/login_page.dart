@@ -20,13 +20,6 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isRegisterMode = false;
   bool _obscurePassword = true;
-  String _selectedRol = 'estudiante';
-
-  final List<Map<String, String>> _roles = [
-    {'value': 'estudiante', 'label': 'Estudiante'},
-    {'value': 'seguridad', 'label': 'Seguridad'},
-    {'value': 'admin', 'label': 'Administrador'},
-  ];
 
   @override
   void dispose() {
@@ -51,7 +44,7 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text,
         nombre: _nombreController.text.trim(),
         apellido: _apellidoController.text.trim(),
-        rol: _selectedRol,
+        rol: 'estudiante',
         telefono: _telefonoController.text.trim().isNotEmpty
             ? _telefonoController.text.trim()
             : null,
@@ -147,21 +140,10 @@ class _LoginPageState extends State<LoginPage> {
                           keyboardType: TextInputType.phone,
                         ),
                         const SizedBox(height: 16),
-                        DropdownButtonFormField<String>(
-                          initialValue: _selectedRol,
-                          decoration: const InputDecoration(
-                            labelText: 'Rol',
-                            prefixIcon: Icon(Icons.badge_outlined),
-                          ),
-                          items: _roles.map((role) {
-                            return DropdownMenuItem(
-                              value: role['value'],
-                              child: Text(role['label']!),
-                            );
-                          }).toList(),
-                          onChanged: (v) {
-                            if (v != null) setState(() => _selectedRol = v);
-                          },
+                        const Text(
+                          'Las cuentas nuevas se registran como estudiantes. '
+                          'El personal se crea desde el panel administrativo.',
+                          style: TextStyle(color: Colors.grey, fontSize: 13),
                         ),
                         const SizedBox(height: 16),
                       ],

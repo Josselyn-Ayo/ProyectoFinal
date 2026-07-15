@@ -76,7 +76,7 @@ class AuthProvider extends ChangeNotifier {
     String? carrera,
     String? contactoEmergencia,
   }) async {
-    await _repository.register(
+    await _repository.createAdminUser(
       email: email,
       password: password,
       nombre: nombre,
@@ -85,8 +85,11 @@ class AuthProvider extends ChangeNotifier {
       telefono: telefono,
       facultad: facultad,
       carrera: carrera,
-      contactoEmergencia: contactoEmergencia,
     );
+  }
+
+  Future<void> updateAdminUser(UserEntity user) async {
+    await _repository.updateAdminUser(user);
   }
 
   Future<void> updateUser(UserEntity user) async {

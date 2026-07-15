@@ -265,7 +265,7 @@ class _AdminUsuariosPageState extends State<AdminUsuariosPage> {
                       );
                       await context
                           .read<AuthProvider>()
-                          .updateUser(updated);
+                          .updateAdminUser(updated);
                       Navigator.pop(ctx);
                       _cargarUsuarios();
                     } catch (e) {

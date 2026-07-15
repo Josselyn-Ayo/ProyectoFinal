@@ -8,6 +8,7 @@ import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../incidente/presentation/pages/mapa_page.dart';
 import '../../../incidente/presentation/pages/mis_reportes_page.dart';
+import '../../../incidente/presentation/pages/reportar_incidente_page.dart';
 import '../../../incidente/presentation/pages/sos_page.dart';
 import '../../../incidente/presentation/providers/incidente_provider.dart';
 import 'alertas_estudiante_page.dart';
@@ -272,10 +273,9 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
         label: 'Reportar',
         color: AppTheme.dangerColor,
         onTap: () {
-          final uid = context.read<AuthProvider>().userId ?? '';
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => SosPage(usuarioId: uid)),
+            MaterialPageRoute(builder: (_) => const ReportarIncidentePage()),
           );
         },
       ),

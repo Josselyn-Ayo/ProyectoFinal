@@ -8,26 +8,29 @@ class IncidenteRepositoryImpl implements IncidenteRepository {
   IncidenteRepositoryImpl(this.datasource);
 
   @override
-  Future<void> crearIncidente({
+  Future<IncidenteEntity> crearIncidente({
     String? usuarioId,
     required String tipo,
     String? descripcion,
     double? latitud,
     double? longitud,
     String? foto,
+    String? prioridad,
     bool anonimo = false,
     String? ubicacionReferencia,
   }) async {
-    await datasource.crearIncidente({
+    final model = await datasource.crearIncidente({
       'usuario_id': usuarioId,
       'tipo': tipo,
       'descripcion': descripcion,
       'latitud': latitud,
       'longitud': longitud,
       'foto': foto,
+      'prioridad': prioridad,
       'anonimo': anonimo,
       'ubicacion_referencia': ubicacionReferencia,
     });
+    return model.toEntity();
   }
 
   @override
@@ -63,6 +66,11 @@ class IncidenteRepositoryImpl implements IncidenteRepository {
         'respuesta_seguridad': ?respuesta,
       },
     );
+  }
+
+  @override
+  Future<void> reclamarIncidente(String incidenteId) {
+    return datasource.reclamarIncidente(incidenteId);
   }
 
   @override

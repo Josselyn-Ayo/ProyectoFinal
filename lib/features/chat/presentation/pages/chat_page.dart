@@ -24,12 +24,14 @@ class _ChatPageState extends State<ChatPage> {
   final TextEditingController _mensajeController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
+  late final Stream<List<MensajeEntity>> _mensajesStream;
   bool _enviando = false;
 
   @override
   void initState() {
     super.initState();
     final provider = context.read<ChatProvider>();
+    _mensajesStream = provider.streamMensajes(widget.incidenteId);
     provider.getMensajes(widget.incidenteId);
   }
 
@@ -88,6 +90,8 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final chatProvider = context.watch<ChatProvider>();
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Chat - ${widget.incidenteTipo}'),
@@ -105,11 +109,10 @@ class _ChatPageState extends State<ChatPage> {
         children: [
           Expanded(
             child: StreamBuilder<List<MensajeEntity>>(
-              stream:
-                  context.read<ChatProvider>().streamMensajes(widget.incidenteId),
+              stream: _mensajesStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  final cachedMensajes = context.read<ChatProvider>().mensajes;
+                  final cachedMensajes = chatProvider.mensajes;
                   if (cachedMensajes.isNotEmpty) {
                     return _buildMensajesList(cachedMensajes);
                   }
@@ -117,7 +120,7 @@ class _ChatPageState extends State<ChatPage> {
                 }
 
                 if (snapshot.hasError) {
-                  final cachedMensajes = context.read<ChatProvider>().mensajes;
+                  final cachedMensajes = chatProvider.mensajes;
                   if (cachedMensajes.isNotEmpty) {
                     return _buildMensajesList(cachedMensajes);
                   }
@@ -144,6 +147,12 @@ class _ChatPageState extends State<ChatPage> {
 
                 final mensajes = snapshot.data ?? [];
                 if (mensajes.isEmpty) {
+                  final cachedMensajes = chatProvider.mensajes;
+                  if (cachedMensajes.isNotEmpty) {
+                    _scrollToBottom();
+                    return _buildMensajesList(cachedMensajes);
+                  }
+
                   return const Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,

@@ -9,13 +9,15 @@ class ChatRemoteDataSource {
   Future<List<MensajeModel>> getMensajes(String incidenteId) async {
     final response = await client
         .from('mensajes')
-        .select('*, usuarios!mensajes_emisor_id_fkey(nombre)')
+        .select()
         .eq('incidente_id', incidenteId)
         .order('fecha', ascending: true);
 
-    return (response as List)
+    final mensajes = (response as List)
         .map((json) => MensajeModel.fromJson(json as Map<String, dynamic>))
         .toList();
+
+    return _agregarNombresEmisores(mensajes);
   }
 
   Future<void> enviarMensaje({
@@ -39,5 +41,45 @@ class ChatRemoteDataSource {
         .map((data) => (data as List)
             .map((json) => MensajeModel.fromJson(json as Map<String, dynamic>))
             .toList());
+  }
+
+  Future<List<MensajeModel>> _agregarNombresEmisores(
+    List<MensajeModel> mensajes,
+  ) async {
+    final emisorIds = mensajes
+        .map((mensaje) => mensaje.emisorId)
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+
+    if (emisorIds.isEmpty) return mensajes;
+
+    try {
+      final response = await client
+          .from('usuarios')
+          .select('id,nombre,apellido')
+          .inFilter('id', emisorIds);
+
+      final nombresPorId = {
+        for (final usuario in response as List)
+          usuario['id'] as String: [
+            usuario['nombre'],
+            usuario['apellido'],
+          ]
+              .whereType<String>()
+              .where((parte) => parte.trim().isNotEmpty)
+              .join(' ')
+      };
+
+      return mensajes
+          .map(
+            (mensaje) => mensaje.copyWith(
+              emisorNombre: nombresPorId[mensaje.emisorId],
+            ),
+          )
+          .toList();
+    } catch (_) {
+      return mensajes;
+    }
   }
 }

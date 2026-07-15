@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../core/config/theme.dart';
 import '../../../edificio/domain/entities/edificio.dart';
 import '../../../edificio/presentation/providers/edificio_provider.dart';
@@ -20,168 +23,141 @@ class _AdminEdificiosPageState extends State<AdminEdificiosPage> {
     });
   }
 
-  void _showCreateDialog() {
-    final nombreCtrl = TextEditingController();
-    final descripcionCtrl = TextEditingController();
-    final latitudCtrl = TextEditingController();
-    final longitudCtrl = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Crear Edificio'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nombreCtrl,
-                  decoration: const InputDecoration(labelText: 'Nombre'),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: descripcionCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Descripción'),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: latitudCtrl,
-                  decoration: const InputDecoration(labelText: 'Latitud'),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: longitudCtrl,
-                  decoration: const InputDecoration(labelText: 'Longitud'),
-                  keyboardType: TextInputType.number,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancelar')),
-            ElevatedButton(
-              onPressed: () {
-                final lat = double.tryParse(latitudCtrl.text.trim());
-                final lng = double.tryParse(longitudCtrl.text.trim());
-                context.read<EdificioProvider>().crearEdificio(
-                      nombre: nombreCtrl.text.trim(),
-                      descripcion: descripcionCtrl.text.trim().isNotEmpty
-                          ? descripcionCtrl.text.trim()
-                          : null,
-                      latitud: lat,
-                      longitud: lng,
-                    );
-                Navigator.pop(ctx);
-              },
-              child: const Text('Crear'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  void _showCreateDialog() => _showEdificioDialog();
 
   void _showEditDialog(EdificioEntity edificio) {
-    final nombreCtrl = TextEditingController(text: edificio.nombre);
+    _showEdificioDialog(edificio: edificio);
+  }
+
+  void _showEdificioDialog({EdificioEntity? edificio}) {
+    final nombreCtrl = TextEditingController(text: edificio?.nombre ?? '');
     final descripcionCtrl =
-        TextEditingController(text: edificio.descripcion ?? '');
-    final latitudCtrl =
-        TextEditingController(text: edificio.latitud?.toString() ?? '');
-    final longitudCtrl =
-        TextEditingController(text: edificio.longitud?.toString() ?? '');
+        TextEditingController(text: edificio?.descripcion ?? '');
+    LatLng? ubicacion = edificio?.latitud != null && edificio?.longitud != null
+        ? LatLng(edificio!.latitud!, edificio.longitud!)
+        : null;
 
     showDialog(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Editar Edificio'),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(edificio == null ? 'Crear Edificio' : 'Editar Edificio'),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nombreCtrl,
-                  decoration: const InputDecoration(labelText: 'Nombre'),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: descripcionCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Descripción'),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: latitudCtrl,
-                  decoration: const InputDecoration(labelText: 'Latitud'),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: longitudCtrl,
-                  decoration: const InputDecoration(labelText: 'Longitud'),
-                  keyboardType: TextInputType.number,
-                ),
-              ],
+            child: SizedBox(
+              width: 360,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nombreCtrl,
+                    decoration: const InputDecoration(labelText: 'Nombre'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: descripcionCtrl,
+                    decoration: const InputDecoration(labelText: 'Descripcion'),
+                  ),
+                  const SizedBox(height: 16),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Ubicacion en el campus',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _LocationPickerMap(
+                    selectedLocation: ubicacion,
+                    onLocationSelected: (location) {
+                      setDialogState(() => ubicacion = location);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    ubicacion == null
+                        ? 'Toca el mapa para marcar el edificio.'
+                        : 'Ubicacion seleccionada: ${ubicacion!.latitude.toStringAsFixed(6)}, ${ubicacion!.longitude.toStringAsFixed(6)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: ubicacion == null
+                          ? Colors.grey[700]
+                          : AppTheme.successColor,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancelar')),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
             ElevatedButton(
               onPressed: () {
-                final lat = double.tryParse(latitudCtrl.text.trim());
-                final lng = double.tryParse(longitudCtrl.text.trim());
-                context.read<EdificioProvider>().editarEdificio(
-                      id: edificio.id!,
-                      nombre: nombreCtrl.text.trim(),
-                      descripcion: descripcionCtrl.text.trim().isNotEmpty
-                          ? descripcionCtrl.text.trim()
-                          : null,
-                      latitud: lat,
-                      longitud: lng,
-                    );
-                Navigator.pop(ctx);
+                if (nombreCtrl.text.trim().isEmpty || ubicacion == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Ingresa un nombre y selecciona la ubicacion en el mapa.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+
+                final provider = context.read<EdificioProvider>();
+                if (edificio == null) {
+                  provider.crearEdificio(
+                    nombre: nombreCtrl.text.trim(),
+                    descripcion: descripcionCtrl.text.trim().isEmpty
+                        ? null
+                        : descripcionCtrl.text.trim(),
+                    latitud: ubicacion!.latitude,
+                    longitud: ubicacion!.longitude,
+                  );
+                } else {
+                  provider.editarEdificio(
+                    id: edificio.id!,
+                    nombre: nombreCtrl.text.trim(),
+                    descripcion: descripcionCtrl.text.trim().isEmpty
+                        ? null
+                        : descripcionCtrl.text.trim(),
+                    latitud: ubicacion!.latitude,
+                    longitud: ubicacion!.longitude,
+                  );
+                }
+                Navigator.pop(dialogContext);
               },
-              child: const Text('Guardar'),
+              child: Text(edificio == null ? 'Crear' : 'Guardar'),
             ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 
   void _showDeleteDialog(EdificioEntity edificio) {
     showDialog(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Eliminar Edificio'),
-          content: Text('¿Eliminar el edificio "${edificio.nombre}"?'),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancelar')),
-            ElevatedButton(
-              onPressed: () {
-                context
-                    .read<EdificioProvider>()
-                    .eliminarEdificio(edificio.id!);
-                Navigator.pop(ctx);
-              },
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.dangerColor),
-              child:
-                  const Text('Eliminar', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Eliminar Edificio'),
+        content: Text('Eliminar el edificio "${edificio.nombre}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              context.read<EdificioProvider>().eliminarEdificio(edificio.id!);
+              Navigator.pop(dialogContext);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.dangerColor),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -191,43 +167,40 @@ class _AdminEdificiosPageState extends State<AdminEdificiosPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(edificio.nombre,
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold)),
-                if (edificio.descripcion != null)
-                  Text(edificio.descripcion!,
-                      style: TextStyle(color: Colors.grey[600])),
-                const SizedBox(height: 16),
-                ListTile(
-                  leading: const Icon(Icons.edit, color: AppTheme.primaryColor),
-                  title: const Text('Editar'),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _showEditDialog(edificio);
-                  },
-                ),
-                ListTile(
-                  leading:
-                      const Icon(Icons.delete, color: AppTheme.dangerColor),
-                  title: const Text('Eliminar'),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _showDeleteDialog(edificio);
-                  },
-                ),
-              ],
-            ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                edificio.nombre,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              if (edificio.descripcion != null)
+                Text(edificio.descripcion!, style: TextStyle(color: Colors.grey[700])),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.edit, color: AppTheme.primaryColor),
+                title: const Text('Editar'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _showEditDialog(edificio);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: AppTheme.dangerColor),
+                title: const Text('Eliminar'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _showDeleteDialog(edificio);
+                },
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -239,55 +212,110 @@ class _AdminEdificiosPageState extends State<AdminEdificiosPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (edificioProvider.edificios.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.business_outlined, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No hay edificios registrados',
-                style: TextStyle(color: Colors.grey, fontSize: 16)),
-          ],
-        ),
-      );
-    }
-
     return Scaffold(
-      body: ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: edificioProvider.edificios.length,
-        itemBuilder: (_, i) {
-          final edificio = edificioProvider.edificios[i];
-          return Card(
-            child: ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: AppTheme.primaryColor,
-                child: Icon(Icons.business, color: Colors.white),
-              ),
-              title: Text(edificio.nombre,
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: edificioProvider.edificios.isEmpty
+          ? const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (edificio.descripcion != null) Text(edificio.descripcion!),
-                  if (edificio.latitud != null && edificio.longitud != null)
-                    Text(
-                      '📍 ${edificio.latitud!.toStringAsFixed(4)}, ${edificio.longitud!.toStringAsFixed(4)}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
+                  Icon(Icons.business_outlined, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'No hay edificios registrados',
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                  ),
                 ],
               ),
-              onTap: () => _showEdificioActions(edificio),
-              onLongPress: () => _showEdificioActions(edificio),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: edificioProvider.edificios.length,
+              itemBuilder: (_, index) {
+                final edificio = edificioProvider.edificios[index];
+                return Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: AppTheme.primaryColor,
+                      child: Icon(Icons.business, color: Colors.white),
+                    ),
+                    title: Text(
+                      edificio.nombre,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (edificio.descripcion != null) Text(edificio.descripcion!),
+                        if (edificio.latitud != null && edificio.longitud != null)
+                          Text(
+                            'Ubicacion: ${edificio.latitud!.toStringAsFixed(4)}, ${edificio.longitud!.toStringAsFixed(4)}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                      ],
+                    ),
+                    onTap: () => _showEdificioActions(edificio),
+                    onLongPress: () => _showEdificioActions(edificio),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateDialog,
         backgroundColor: AppTheme.primaryColor,
         child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+}
+
+class _LocationPickerMap extends StatelessWidget {
+  static const _epnCenter = LatLng(-0.210145, -78.488712);
+
+  final LatLng? selectedLocation;
+  final ValueChanged<LatLng> onLocationSelected;
+
+  const _LocationPickerMap({
+    required this.selectedLocation,
+    required this.onLocationSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 230,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: FlutterMap(
+          options: MapOptions(
+            initialCenter: selectedLocation ?? _epnCenter,
+            initialZoom: 17,
+            onTap: (_, location) => onLocationSelected(location),
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.example.proyecto_final',
+            ),
+            if (selectedLocation != null)
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: selectedLocation!,
+                    width: 48,
+                    height: 48,
+                    child: const Icon(
+                      Icons.location_on,
+                      color: AppTheme.dangerColor,
+                      size: 44,
+                    ),
+                  ),
+                ],
+              ),
+            const RichAttributionWidget(
+              attributions: [TextSourceAttribution('OpenStreetMap contributors')],
+            ),
+          ],
+        ),
       ),
     );
   }
