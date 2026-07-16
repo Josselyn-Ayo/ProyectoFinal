@@ -130,7 +130,9 @@ class _SosPageState extends State<SosPage> {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Row(
             children: [
               Icon(Icons.shield, color: AppTheme.successColor),
@@ -167,77 +169,94 @@ class _SosPageState extends State<SosPage> {
     final hasLocation = _latitud != null && _longitud != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('SOS'),
-        backgroundColor: AppTheme.dangerColor,
-      ),
+      appBar: AppBar(title: const Text('Emergencia SOS')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppTheme.dangerColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppTheme.dangerColor.withValues(alpha: 0.35),
+            Center(
+              child: Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.dangerColor,
+                  border: Border.all(color: AppTheme.softDanger, width: 14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.dangerColor.withValues(alpha: .22),
+                      blurRadius: 28,
+                      spreadRadius: 8,
+                    ),
+                  ],
+                ),
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.sos, color: Colors.white, size: 56),
+                    SizedBox(height: 4),
+                    Text(
+                      'SOS',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 28,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.emergency_share,
-                    color: AppTheme.dangerColor,
-                    size: 56,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Alerta de emergencia',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              hasLocation
+                  ? 'Tu ubicación está lista para enviarse a seguridad.'
+                  : 'Puedes activar SOS ahora. Si el GPS no está listo, se enviará la alerta y tu referencia.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, color: AppTheme.mutedColor),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: _LocationStatus(
+                  loading: _obteniendoUbicacion,
+                  latitude: _latitud,
+                  longitude: _longitud,
+                  error: _ubicacionError,
+                  onRetry: _obtenerUbicacion,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _ubicacionReferenciaController,
+                      decoration: const InputDecoration(
+                        labelText: 'Referencia rápida opcional',
+                        hintText: 'Ej. Biblioteca, FIEE, entrada principal',
+                        prefixIcon: Icon(Icons.place_outlined),
+                      ),
+                      textInputAction: TextInputAction.next,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    hasLocation
-                        ? 'Tu ubicacion esta lista para enviarse a seguridad.'
-                        : 'Puedes activar SOS ahora. Si el GPS no esta listo, se enviara la alerta y tu referencia.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            _LocationStatus(
-              loading: _obteniendoUbicacion,
-              latitude: _latitud,
-              longitude: _longitud,
-              error: _ubicacionError,
-              onRetry: _obtenerUbicacion,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _ubicacionReferenciaController,
-              decoration: const InputDecoration(
-                labelText: 'Referencia rapida opcional',
-                hintText: 'Ej. Biblioteca, FIEE, entrada principal',
-                prefixIcon: Icon(Icons.place_outlined),
-              ),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _descripcionController,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Detalle opcional',
-                hintText: 'Ej. me siguen, accidente, necesito ayuda medica',
-                prefixIcon: Icon(Icons.notes_outlined),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _descripcionController,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        labelText: 'Detalle opcional',
+                        hintText:
+                            'Ej. me siguen, accidente, necesito ayuda médica',
+                        prefixIcon: Icon(Icons.notes_outlined),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -276,7 +295,7 @@ class _SosPageState extends State<SosPage> {
                   backgroundColor: AppTheme.dangerColor,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(999),
                   ),
                 ),
               ),
@@ -315,14 +334,14 @@ class _LocationStatus extends StatelessWidget {
     final color = hasLocation
         ? AppTheme.successColor
         : error != null
-            ? AppTheme.dangerColor
-            : AppTheme.warningColor;
+        ? AppTheme.dangerColor
+        : AppTheme.warningColor;
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Row(
@@ -348,12 +367,9 @@ class _LocationStatus extends StatelessWidget {
                   loading
                       ? 'Obteniendo ubicacion...'
                       : hasLocation
-                          ? 'Ubicacion detectada'
-                          : error ?? 'Ubicacion pendiente',
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                  ),
+                      ? 'Ubicacion detectada'
+                      : error ?? 'Ubicacion pendiente',
+                  style: TextStyle(color: color, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 2),
                 Text(

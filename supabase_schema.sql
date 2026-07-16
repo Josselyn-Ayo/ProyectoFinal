@@ -256,15 +256,18 @@ CREATE POLICY "Admin puede gestionar guardias" ON guardias
 -- DATOS DE PRUEBA (Opcional)
 -- ============================================
 
--- Edificios de ejemplo
+-- Edificios de ejemplo: Campus Jose Ruben Orellana de la EPN, Quito.
+-- Coordenadas de referencia para las pruebas del mapa; pueden ajustarse desde el CRUD.
 INSERT INTO edificios (nombre, descripcion, latitud, longitud) VALUES
-  ('Biblioteca Central', 'Biblioteca principal del campus', 4.6285, -74.0653),
-  ('Laboratorio de Ingeniería', 'Laboratorios de ingeniería y computación', 4.6290, -74.0648),
-  ('Parqueadero Principal', 'Parqueadero para estudiantes y docentes', 4.6278, -74.0660),
-  ('Cafetería Central', 'Cafetería y zona de comidas', 4.6288, -74.0655),
-  ('Enfermería', 'Servicio médico universitario', 4.6292, -74.0650),
-  ('Bloque A - Aulas', 'Edificio de aulas bloque A', 4.6282, -74.0645),
-  ('Bloque B - Aulas', 'Edificio de aulas bloque B', 4.6280, -74.0643),
-  ('Salida de Emergencia Norte', 'Salida de emergencia sector norte', 4.6295, -74.0640),
-  ('Salida de Emergencia Sur', 'Salida de emergencia sector sur', 4.6275, -74.0665),
-  ('Punto de Seguridad Principal', 'Oficina central de seguridad', 4.6286, -74.0658);
+  ('Administracion Central', 'Rectorado y dependencias administrativas', -0.210844, -78.487742),
+  ('Biblioteca General', 'Biblioteca y espacios de estudio', -0.209853, -78.489098),
+  ('Facultad de Ingenieria de Sistemas', 'Aulas, laboratorios y oficinas de Sistemas', -0.209582, -78.488138),
+  ('Facultad de Ingenieria Electrica y Electronica', 'Aulas y laboratorios de ingenieria electrica', -0.210076, -78.487456),
+  ('Facultad de Ingenieria Civil y Ambiental', 'Aulas y laboratorios de Ingenieria Civil y Ambiental', -0.210466, -78.489569),
+  ('Teatro Politecnico', 'Auditorio principal para actos institucionales', -0.209995, -78.489818),
+  ('Cafeteria Central', 'Zona de alimentacion y encuentro estudiantil', -0.210376, -78.488530),
+  ('Centro Medico', 'Atencion primaria y primeros auxilios', -0.210700, -78.488267),
+  ('Parqueadero Principal', 'Acceso y parqueadero del campus', -0.211057, -78.488952),
+  ('Punto de Seguridad Principal', 'Control de acceso por la entrada de Andalucia', -0.211012, -78.487963),
+  ('Salida de Emergencia Norte', 'Punto de evacuacion hacia el limite norte del campus', -0.209246, -78.488842),
+  ('Salida de Emergencia Sur', 'Punto de evacuacion hacia el limite sur del campus', -0.211296, -78.488470);

@@ -41,7 +41,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Panel de Administracion'),
+        title: const Text('CampusSOS EPN'),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.account_circle, size: 30),
@@ -120,17 +120,37 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           AdminConfiguracionPage(),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _bottomIndexForPage(_currentIndex),
-        onTap: (index) => setState(() => _currentIndex = _quickNavIndexes[index]),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppTheme.primaryColor,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Usuarios'),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'Incidentes'),
-          BottomNavigationBarItem(icon: Icon(Icons.warning), label: 'Alertas'),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Estadisticas'),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _bottomIndexForPage(_currentIndex),
+        onDestinationSelected: (index) =>
+            setState(() => _currentIndex = _quickNavIndexes[index]),
+        indicatorColor: AppTheme.softTeal,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Inicio',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            selectedIcon: Icon(Icons.people),
+            label: 'Usuarios',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
+            label: 'Incidentes',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.warning_amber_outlined),
+            selectedIcon: Icon(Icons.warning),
+            label: 'Alertas',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: 'Estadísticas',
+          ),
         ],
       ),
     );
@@ -184,6 +204,20 @@ class _DashboardTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            'Panel de control general',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Resumen operativo del campus en tiempo real.',
+            style: TextStyle(color: AppTheme.mutedColor),
+          ),
+          const SizedBox(height: 20),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -279,26 +313,31 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: color,
+      color: color == AppTheme.dangerColor
+          ? AppTheme.softDanger
+          : AppTheme.softBlue,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: Colors.white, size: 30),
+            CircleAvatar(
+              backgroundColor: color,
+              child: Icon(icon, color: Colors.white, size: 21),
+            ),
             const Spacer(),
             Text(
               value,
               style: const TextStyle(
-                color: Colors.white,
+                color: AppTheme.primaryColor,
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
               title,
-              style: const TextStyle(color: Colors.white, fontSize: 13),
+              style: const TextStyle(color: AppTheme.mutedColor, fontSize: 13),
             ),
           ],
         ),

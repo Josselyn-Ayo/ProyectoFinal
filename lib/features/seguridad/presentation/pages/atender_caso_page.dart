@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/config/theme.dart';
 import '../../../../core/services/evidencia_storage_service.dart';
+import '../../../../core/widgets/evidencias_gallery.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/widgets/campus_map_widget.dart';
 import '../../../incidente/domain/entities/incidente.dart';
@@ -25,6 +26,7 @@ class AtenderCasoPage extends StatefulWidget {
 class _AtenderCasoPageState extends State<AtenderCasoPage> {
   late IncidenteEntity _incidente;
   final ImagePicker _picker = ImagePicker();
+  int _evidenciasVersion = 0;
 
   @override
   void initState() {
@@ -78,16 +80,14 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
               onPressed: () async {
                 final guardiaProvider = context.read<GuardiaProvider>();
                 final miGuardia = guardiaProvider.miGuardia;
-                context
-                    .read<IncidenteProvider>()
-                    .actualizarEstado(
-                      _incidente.id,
-                      'Cerrado',
-                      guardiaId: miGuardia?.id,
-                      respuesta: respuestaCtrl.text.trim().isEmpty
-                          ? null
-                          : respuestaCtrl.text.trim(),
-                    );
+                context.read<IncidenteProvider>().actualizarEstado(
+                  _incidente.id,
+                  'Cerrado',
+                  guardiaId: miGuardia?.id,
+                  respuesta: respuestaCtrl.text.trim().isEmpty
+                      ? null
+                      : respuestaCtrl.text.trim(),
+                );
                 if (miGuardia?.id != null) {
                   await guardiaProvider.actualizarEstado(
                     guardiaId: miGuardia!.id!,
@@ -117,19 +117,26 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
   Future<void> _subirEvidencia() async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.camera);
-      if (image != null && mounted) {
-        final userId = context.read<AuthProvider>().userId;
-        if (userId == null) throw StateError('Sesion no valida');
-        await EvidenciaStorageService().subirFoto(
-          archivo: File(image.path),
-          incidenteId: _incidente.id,
-          usuarioId: userId,
-        );
+      if (!mounted || image == null) return;
+      final userId = context.read<AuthProvider>().userId;
+      if (userId == null) throw StateError('Sesion no valida');
+      await EvidenciaStorageService().subirFoto(
+        archivo: File(image.path),
+        incidenteId: _incidente.id,
+        usuarioId: userId,
+      );
+      if (!mounted) return;
+      setState(() => _evidenciasVersion++);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Evidencia subida correctamente')),
+      );
+    } catch (_) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Evidencia subida correctamente')),
+          const SnackBar(content: Text('No se pudo subir la evidencia')),
         );
       }
-    } catch (_) {}
+    }
   }
 
   ButtonStyle _actionButtonStyle(Color color) {
@@ -161,14 +168,22 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(_incidente.tipo,
-                              style: const TextStyle(
-                                  fontSize: 22, fontWeight: FontWeight.bold)),
+                          child: Text(
+                            _incidente.tipo,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                         Chip(
-                          label: Text(_incidente.estado,
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 12)),
+                          label: Text(
+                            _incidente.estado,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
                           backgroundColor: _estadoColor(_incidente.estado),
                         ),
                       ],
@@ -188,8 +203,10 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
                       _detailRow('Referencia', _incidente.ubicacionReferencia!),
                     if (_incidente.descripcion != null) ...[
                       const SizedBox(height: 8),
-                      const Text('Descripción',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
+                      const Text(
+                        'Descripción',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                       const SizedBox(height: 4),
                       Text(_incidente.descripcion!),
                     ],
@@ -197,42 +214,24 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
                 ),
               ),
             ),
-            if (_incidente.foto != null)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Foto del incidente',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
-                      Container(
-                        height: 200,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.image,
-                              size: 64, color: Colors.grey),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            EvidenciasGallery(
+              key: ValueKey(_evidenciasVersion),
+              incidenteId: _incidente.id,
+              fotoLegada: _incidente.foto,
+            ),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Ubicación',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Text(
+                      'Ubicación',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     const SizedBox(height: 8),
-                    if (_incidente.latitud != null && _incidente.longitud != null)
+                    if (_incidente.latitud != null &&
+                        _incidente.longitud != null)
                       SizedBox(
                         height: 180,
                         width: double.infinity,
@@ -251,7 +250,9 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Center(
-                          child: Text('Este incidente no tiene coordenadas registradas'),
+                          child: Text(
+                            'Este incidente no tiene coordenadas registradas',
+                          ),
                         ),
                       ),
                   ],
@@ -267,16 +268,13 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
                   if (_incidente.estado == 'Guardia asignado' && esMiCaso)
                     ElevatedButton.icon(
                       onPressed: () {
-                        context
-                            .read<IncidenteProvider>()
-                            .actualizarEstado(
-                              _incidente.id,
-                              'En camino',
-                              guardiaId: miGuardia?.id,
-                            );
+                        context.read<IncidenteProvider>().actualizarEstado(
+                          _incidente.id,
+                          'En camino',
+                          guardiaId: miGuardia?.id,
+                        );
                         setState(() {
-                          _incidente =
-                              _incidente.copyWith(estado: 'En camino');
+                          _incidente = _incidente.copyWith(estado: 'En camino');
                         });
                       },
                       icon: const Icon(Icons.directions_walk),
@@ -286,16 +284,13 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
                   if (_incidente.estado == 'En camino' && esMiCaso)
                     ElevatedButton.icon(
                       onPressed: () {
-                        context
-                            .read<IncidenteProvider>()
-                            .actualizarEstado(
-                              _incidente.id,
-                              'Atendido',
-                              guardiaId: miGuardia?.id,
-                            );
+                        context.read<IncidenteProvider>().actualizarEstado(
+                          _incidente.id,
+                          'Atendido',
+                          guardiaId: miGuardia?.id,
+                        );
                         setState(() {
-                          _incidente =
-                              _incidente.copyWith(estado: 'Atendido');
+                          _incidente = _incidente.copyWith(estado: 'Atendido');
                         });
                       },
                       icon: const Icon(Icons.check_circle_outline),
@@ -312,21 +307,26 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
                   if (_incidente.estado == 'Reportado')
                     ElevatedButton.icon(
                       onPressed: () async {
-                        final accepted = await context
-                            .read<IncidenteProvider>()
+                        final incidenteProvider = context
+                            .read<IncidenteProvider>();
+                        final guardiaId = miGuardia?.id;
+                        final accepted = await incidenteProvider
                             .reclamarIncidente(_incidente.id);
-                        if (!mounted) return;
+                        if (!mounted || !context.mounted) return;
                         if (accepted) {
                           setState(() {
                             _incidente = _incidente.copyWith(
                               estado: 'Guardia asignado',
-                              guardiaId: miGuardia?.id,
+                              guardiaId: guardiaId,
                             );
                           });
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(context.read<IncidenteProvider>().error ?? 'El caso ya no esta disponible'),
+                              content: Text(
+                                incidenteProvider.error ??
+                                    'El caso ya no esta disponible',
+                              ),
                             ),
                           );
                         }
@@ -347,8 +347,7 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              ChatPage(incidenteId: _incidente.id),
+                          builder: (_) => ChatPage(incidenteId: _incidente.id),
                         ),
                       );
                     },
@@ -377,9 +376,13 @@ class _AtenderCasoPageState extends State<AtenderCasoPage> {
         children: [
           SizedBox(
             width: 100,
-            child: Text(label,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600, color: Colors.grey)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.grey,
+              ),
+            ),
           ),
           Expanded(child: Text(value)),
         ],

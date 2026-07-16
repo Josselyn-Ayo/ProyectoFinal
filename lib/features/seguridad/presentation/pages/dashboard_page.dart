@@ -60,7 +60,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(auth.user?.nombreCompleto ?? 'Seguridad'),
+        title: const Text('CampusSOS EPN'),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.account_circle, size: 30),
@@ -85,15 +85,31 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
       body: _pages[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        selectedItemColor: AppTheme.primaryColor,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.warning), label: 'Emergencias'),
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) => setState(() => _currentIndex = index),
+        indicatorColor: AppTheme.softTeal,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Inicio',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.warning_amber_outlined),
+            selectedIcon: Icon(Icons.warning),
+            label: 'Emergencias',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.map_outlined),
+            selectedIcon: Icon(Icons.map),
+            label: 'Mapa',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history),
+            label: 'Historial',
+          ),
         ],
       ),
     );
@@ -125,10 +141,14 @@ class _DashboardTab extends StatelessWidget {
               incidente.estado.toLowerCase() != 'cerrado',
         )
         .length;
-    final guardiasDisponibles =
-        guardiaProvider.guardias.where((guardia) => guardia.disponible).length;
+    final guardiasDisponibles = guardiaProvider.guardias
+        .where((guardia) => guardia.disponible)
+        .length;
     final incidentesConUbicacion = incidenteProvider.incidentesActivos
-        .where((incidente) => incidente.latitud != null && incidente.longitud != null)
+        .where(
+          (incidente) =>
+              incidente.latitud != null && incidente.longitud != null,
+        )
         .toList();
 
     return RefreshIndicator(
@@ -143,7 +163,20 @@ class _DashboardTab extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const SizedBox(height: 8),
+          const Text(
+            'Centro operativo',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Monitorea y atiende los eventos del campus.',
+            style: TextStyle(color: AppTheme.mutedColor),
+          ),
+          const SizedBox(height: 20),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -231,19 +264,24 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: color,
+      color: color == AppTheme.dangerColor
+          ? AppTheme.softDanger
+          : AppTheme.softBlue,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: Colors.white, size: 32),
+            CircleAvatar(
+              backgroundColor: color,
+              child: Icon(icon, color: Colors.white, size: 22),
+            ),
             const Spacer(),
             Text(
               value,
               style: const TextStyle(
-                color: Colors.white,
+                color: AppTheme.primaryColor,
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
               ),
@@ -251,7 +289,7 @@ class _SummaryCard extends StatelessWidget {
             Text(
               title,
               style: const TextStyle(
-                color: Colors.white,
+                color: AppTheme.mutedColor,
                 fontSize: 12,
                 height: 1.2,
               ),

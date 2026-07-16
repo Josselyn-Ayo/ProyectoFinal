@@ -10,7 +10,8 @@ class AuthProvider extends ChangeNotifier {
   bool _loading = false;
   String? _error;
 
-  AuthProvider({required AuthRepository repository}) : _repository = repository {
+  AuthProvider({required AuthRepository repository})
+    : _repository = repository {
     _repository.authStateChanges.listen((authState) async {
       if (authState.event == AuthChangeEvent.signedIn) {
         _user = await _repository.getCurrentUser();
@@ -94,6 +95,8 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> updateUser(UserEntity user) async {
     await _repository.updateUser(user);
+    _user = user;
+    notifyListeners();
   }
 
   Future<void> deleteUser(String id) async {

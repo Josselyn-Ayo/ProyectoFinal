@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/config/theme.dart';
 import '../../../../core/widgets/campus_map_widget.dart';
+import '../../../../core/widgets/evidencias_gallery.dart';
 import '../../../chat/presentation/pages/chat_page.dart';
 import '../../domain/entities/incidente.dart';
 import '../providers/incidente_provider.dart';
@@ -74,7 +75,9 @@ class DetalleReportePage extends StatelessWidget {
                       incidenteActual.descripcion!.trim().isNotEmpty)
                     Text(incidenteActual.descripcion!),
                   if (incidenteActual.ubicacionReferencia != null &&
-                      incidenteActual.ubicacionReferencia!.trim().isNotEmpty) ...[
+                      incidenteActual.ubicacionReferencia!
+                          .trim()
+                          .isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -87,7 +90,9 @@ class DetalleReportePage extends StatelessWidget {
                     ),
                   ],
                   if (incidenteActual.respuestaSeguridad != null &&
-                      incidenteActual.respuestaSeguridad!.trim().isNotEmpty) ...[
+                      incidenteActual.respuestaSeguridad!
+                          .trim()
+                          .isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Container(
                       width: double.infinity,
@@ -114,6 +119,11 @@ class DetalleReportePage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          EvidenciasGallery(
+            incidenteId: incidenteActual.id,
+            fotoLegada: incidenteActual.foto,
+          ),
+          const SizedBox(height: 16),
           const Text(
             'Estado del caso',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -121,7 +131,8 @@ class DetalleReportePage extends StatelessWidget {
           const SizedBox(height: 10),
           _TimelineCard(incidente: incidenteActual),
           const SizedBox(height: 16),
-          if (incidenteActual.latitud != null && incidenteActual.longitud != null) ...[
+          if (incidenteActual.latitud != null &&
+              incidenteActual.longitud != null) ...[
             const Text(
               'Ubicacion registrada',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -185,14 +196,17 @@ class _TimelineCard extends StatelessWidget {
       ('Cerrado', 'El incidente se resolvio y cerro'),
     ];
 
-    final currentIndex = steps.indexWhere((step) => step.$1 == incidente.estado);
+    final currentIndex = steps.indexWhere(
+      (step) => step.$1 == incidente.estado,
+    );
 
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: List.generate(steps.length, (index) {
-            final active = index <= currentIndex || currentIndex == -1 && index == 0;
+            final active =
+                index <= currentIndex || currentIndex == -1 && index == 0;
             final isLast = index == steps.length - 1;
 
             return Row(
@@ -204,18 +218,26 @@ class _TimelineCard extends StatelessWidget {
                       width: 18,
                       height: 18,
                       decoration: BoxDecoration(
-                        color: active ? AppTheme.primaryColor : Colors.grey[300],
+                        color: active
+                            ? AppTheme.primaryColor
+                            : Colors.grey[300],
                         shape: BoxShape.circle,
                       ),
                       child: active
-                          ? const Icon(Icons.check, size: 12, color: Colors.white)
+                          ? const Icon(
+                              Icons.check,
+                              size: 12,
+                              color: Colors.white,
+                            )
                           : null,
                     ),
                     if (!isLast)
                       Container(
                         width: 2,
                         height: 42,
-                        color: active ? AppTheme.primaryColor : Colors.grey[300],
+                        color: active
+                            ? AppTheme.primaryColor
+                            : Colors.grey[300],
                       ),
                   ],
                 ),
@@ -279,10 +301,7 @@ class _EstadoChip extends StatelessWidget {
     }
 
     return Chip(
-      label: Text(
-        estado,
-        style: const TextStyle(color: Colors.white),
-      ),
+      label: Text(estado, style: const TextStyle(color: Colors.white)),
       backgroundColor: color,
     );
   }

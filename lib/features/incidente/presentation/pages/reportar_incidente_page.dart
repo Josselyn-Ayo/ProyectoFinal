@@ -90,11 +90,16 @@ class _ReportarIncidentePageState extends State<ReportarIncidentePage> {
         } catch (_) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('El reporte se envio, pero la evidencia no pudo cargarse.')),
+              const SnackBar(
+                content: Text(
+                  'El reporte se envio, pero la evidencia no pudo cargarse.',
+                ),
+              ),
             );
           }
         }
       }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Incidente reportado exitosamente'),
@@ -105,7 +110,9 @@ class _ReportarIncidentePageState extends State<ReportarIncidentePage> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(incidenteProvider.error ?? 'Error al reportar incidente'),
+          content: Text(
+            incidenteProvider.error ?? 'Error al reportar incidente',
+          ),
           backgroundColor: AppTheme.dangerColor,
         ),
       );
@@ -115,92 +122,176 @@ class _ReportarIncidentePageState extends State<ReportarIncidentePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reportar Incidente')),
+      appBar: AppBar(title: const Text('Reportar incidente')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SwitchListTile(
-              value: _anonimo,
-              onChanged: (value) => setState(() => _anonimo = value),
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Reporte anonimo'),
-              subtitle: const Text(
-                'Protege la identidad del estudiante en casos sensibles.',
-              ),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Paso 1 de 1',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                Text('Detalles', style: TextStyle(fontWeight: FontWeight.w600)),
+              ],
             ),
-            const Text(
-              'Tipo de incidente',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            const SizedBox(height: 10),
+            const LinearProgressIndicator(
+              value: 1,
+              minHeight: 8,
+              borderRadius: BorderRadius.all(Radius.circular(99)),
+              color: AppTheme.secondaryColor,
+              backgroundColor: AppTheme.softBlue,
             ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _tipoSeleccionado,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.category)),
-              items: _tiposIncidente.entries
-                  .map((entry) => DropdownMenuItem(
-                        value: entry.key,
-                        child: Text(entry.value),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) setState(() => _tipoSeleccionado = value);
-              },
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Descripcion',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _descripcionController,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                hintText: 'Describe lo sucedido...',
-                alignLabelWithHint: true,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _ubicacionReferenciaController,
-              decoration: const InputDecoration(
-                labelText: 'Referencia del campus',
-                hintText: 'Ej. Coliseo, laboratorios, entrada sur',
-                prefixIcon: Icon(Icons.place_outlined),
-              ),
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _seleccionarFoto,
-              icon: const Icon(Icons.camera_alt),
-              label: const Text('Adjuntar evidencia'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-            if (_foto != null) ...[
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Stack(
+            const SizedBox(height: 22),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Image.file(_foto!, height: 150, fit: BoxFit.cover),
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: IconButton(
-                        onPressed: () => setState(() => _foto = null),
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        style: IconButton.styleFrom(backgroundColor: Colors.black45),
+                    const Text(
+                      '¿Qué tipo de incidente?',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: _tipoSeleccionado,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.category_outlined),
+                      ),
+                      items: _tiposIncidente.entries
+                          .map(
+                            (entry) => DropdownMenuItem(
+                              value: entry.key,
+                              child: Text(entry.value),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _tipoSeleccionado = value);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Describe lo sucedido',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _descripcionController,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        hintText:
+                            'Incluye los detalles que puedan ayudar a seguridad...',
+                        alignLabelWithHint: true,
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
-            const SizedBox(height: 32),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.location_on_outlined),
+                        SizedBox(width: 8),
+                        Text(
+                          'Ubicación',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _ubicacionReferenciaController,
+                      decoration: const InputDecoration(
+                        labelText: 'Referencia del campus',
+                        hintText: 'Ej. Coliseo, laboratorios, entrada sur',
+                        prefixIcon: Icon(Icons.place_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: _seleccionarFoto,
+                      icon: const Icon(Icons.camera_alt_outlined),
+                      label: Text(
+                        _foto == null
+                            ? 'Adjuntar evidencia'
+                            : 'Cambiar evidencia',
+                      ),
+                    ),
+                    if (_foto != null) ...[
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(
+                          children: [
+                            Image.file(
+                              _foto!,
+                              height: 150,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: IconButton(
+                                onPressed: () => setState(() => _foto = null),
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                ),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.black45,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: SwitchListTile(
+                value: _anonimo,
+                onChanged: (value) => setState(() => _anonimo = value),
+                activeTrackColor: AppTheme.secondaryColor,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                title: const Text(
+                  'Reporte anónimo',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: const Text(
+                  'Protege tu identidad en casos sensibles.',
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
             SizedBox(
               height: 50,
               child: ElevatedButton.icon(
@@ -217,7 +308,7 @@ class _ReportarIncidentePageState extends State<ReportarIncidentePage> {
                     : const Icon(Icons.send),
                 label: Text(_enviando ? 'ENVIANDO...' : 'ENVIAR REPORTE'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
+                  backgroundColor: AppTheme.secondaryColor,
                 ),
               ),
             ),

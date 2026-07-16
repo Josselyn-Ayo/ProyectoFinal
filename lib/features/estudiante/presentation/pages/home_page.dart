@@ -47,28 +47,24 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Seguridad Universitaria'),
+        title: const Text('CampusSOS EPN'),
         automaticallyImplyLeading: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.person),
-            tooltip: 'Perfil',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PerfilPage()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Cerrar sesion',
-            onPressed: () async {
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.account_circle_outlined, size: 32),
+            onSelected: (value) async {
+              if (value == 'profile') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PerfilPage()),
+                );
+                return;
+              }
               final confirmar = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  title: const Text('Cerrar sesion'),
-                  content: const Text('Estas seguro de que deseas salir?'),
+                  title: const Text('Cerrar sesión'),
+                  content: const Text('¿Estás seguro de que deseas salir?'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
@@ -81,83 +77,167 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
                   ],
                 ),
               );
-
-              if (confirmar == true) {
-                await auth.logout();
-              }
+              if (confirmar == true) await auth.logout();
             },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'profile', child: Text('Mi perfil')),
+              PopupMenuItem(value: 'logout', child: Text('Cerrar sesión')),
+            ],
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildWelcomeHeader(auth),
-              const SizedBox(height: 24),
-              _buildSosButton(),
-              const SizedBox(height: 24),
-              _buildUltimasAlertas(alerta),
-              const SizedBox(height: 24),
-              _buildAccesosRapidos(),
-              const SizedBox(height: 24),
-              _buildEstadoReportes(incidente),
-              const SizedBox(height: 24),
-              _buildCentroSeguridadCallout(),
-            ],
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildWelcomeHeader(auth),
+                    const SizedBox(height: 20),
+                    _buildSosButton(),
+                    const SizedBox(height: 24),
+                    _buildUltimasAlertas(alerta),
+                    const SizedBox(height: 24),
+                    _buildAccesosRapidos(constraints.maxWidth),
+                    const SizedBox(height: 24),
+                    if (constraints.maxWidth >= 600)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: _buildEstadoReportes(incidente)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _CentroSeguridadCard(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const CentroSeguridadPage(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else ...[
+                      _buildEstadoReportes(incidente),
+                      const SizedBox(height: 12),
+                      _buildCentroSeguridadCallout(),
+                    ],
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: 0,
+        indicatorColor: AppTheme.softTeal,
+        onDestinationSelected: _openBottomDestination,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Inicio',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.map_outlined),
+            selectedIcon: Icon(Icons.map),
+            label: 'Mapa',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.description_outlined),
+            selectedIcon: Icon(Icons.description),
+            label: 'Reportes',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.notifications_none),
+            selectedIcon: Icon(Icons.notifications),
+            label: 'Alertas',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Perfil',
+          ),
+        ],
+      ),
     );
+  }
+
+  void _openBottomDestination(int index) {
+    final List<Widget?> pages = [
+      null,
+      const MapaIncidentePage(),
+      const MisReportesPage(),
+      const AlertasEstudiantePage(),
+      const PerfilPage(),
+    ];
+    final page = pages[index];
+    if (page != null) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    }
   }
 
   Widget _buildWelcomeHeader(AuthProvider auth) {
     final nombre = auth.user?.nombre ?? 'Usuario';
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundColor: AppTheme.primaryColor,
-              child: Text(
-                nombre.isNotEmpty ? nombre[0].toUpperCase() : 'U',
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Hola, $nombre',
                 style: const TextStyle(
-                  fontSize: 24,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.inkColor,
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Bienvenido/a',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    nombre,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 4),
+              const Text(
+                'Campus protegido, comunidad segura.',
+                style: TextStyle(fontSize: 15, color: AppTheme.mutedColor),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppTheme.softBlue,
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: AppTheme.outlineColor),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.shield_outlined,
+                color: AppTheme.secondaryColor,
+                size: 19,
+              ),
+              SizedBox(width: 6),
+              Text(
+                'Seguro',
+                style: TextStyle(
+                  color: AppTheme.secondaryColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -166,28 +246,39 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
       builder: (context, auth, _) {
         final uid = auth.userId ?? '';
 
-        return SizedBox(
-          width: double.infinity,
-          height: 100,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => SosPage(usuarioId: uid)),
-              );
-            },
-            icon: const Icon(Icons.warning_amber_rounded, size: 40),
-            label: const Text(
-              'SOS',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.dangerColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+        return Center(
+          child: SizedBox(
+            width: 202,
+            height: 202,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => SosPage(usuarioId: uid)),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.dangerColor,
+                foregroundColor: Colors.white,
+                shape: const CircleBorder(),
+                elevation: 8,
               ),
-              elevation: 8,
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.sos, size: 62),
+                  SizedBox(height: 4),
+                  Text(
+                    'SOS',
+                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Ayuda inmediata',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -244,6 +335,10 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
           ...alertas.map(
             (item) => Card(
               child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
                 leading: Icon(
                   _alertIcon(item.tipo),
                   color: _alertColor(item.tipo),
@@ -266,7 +361,7 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
     );
   }
 
-  Widget _buildAccesosRapidos() {
+  Widget _buildAccesosRapidos(double availableWidth) {
     final accesos = [
       _AccesoRapido(
         icon: Icons.report_problem,
@@ -297,9 +392,7 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const AlertasEstudiantePage(),
-            ),
+            MaterialPageRoute(builder: (_) => const AlertasEstudiantePage()),
           );
         },
       ),
@@ -325,12 +418,12 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
         ),
         const SizedBox(height: 12),
         GridView.count(
-          crossAxisCount: 2,
+          crossAxisCount: availableWidth >= 600 ? 4 : 2,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: 1.6,
+          childAspectRatio: availableWidth >= 600 ? 1.15 : 1.45,
           children: accesos
               .map(
                 (acceso) => Card(
@@ -342,13 +435,22 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(acceso.icon, size: 36, color: acceso.color),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: acceso.color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(
+                              acceso.icon,
+                              size: 28,
+                              color: acceso.color,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           Text(
                             acceso.label,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ],
                       ),
@@ -389,14 +491,13 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
                 children: [
                   const Text(
                     'Estado de Reportes',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    incidente.loading ? 'Cargando...' : '$activos reportes activos',
+                    incidente.loading
+                        ? 'Cargando...'
+                        : '$activos reportes activos',
                     style: TextStyle(
                       fontSize: 14,
                       color: activos > 0
@@ -414,31 +515,10 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
   }
 
   Widget _buildCentroSeguridadCallout() {
-    return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppTheme.warningColor.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(Icons.shield_moon, color: AppTheme.warningColor),
-        ),
-        title: const Text(
-          'Centro de Seguridad',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: const Text(
-          'Contactos, protocolo de emergencia y recomendaciones para el campus.',
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CentroSeguridadPage()),
-          );
-        },
+    return _CentroSeguridadCard(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CentroSeguridadPage()),
       ),
     );
   }
@@ -456,8 +536,10 @@ class _EstudianteHomePageState extends State<EstudianteHomePage> {
     if (audiencia == 'estudiantes') return true;
     if (audiencia == 'facultad') {
       final facultadUsuario = user?.facultad?.toString().trim().toLowerCase();
-      final facultadObjetivo =
-          alerta.facultadObjetivo?.toString().trim().toLowerCase();
+      final facultadObjetivo = alerta.facultadObjetivo
+          ?.toString()
+          .trim()
+          .toLowerCase();
       return facultadUsuario != null &&
           facultadUsuario.isNotEmpty &&
           facultadObjetivo != null &&
@@ -510,4 +592,66 @@ class _AccesoRapido {
     required this.color,
     required this.onTap,
   });
+}
+
+class _CentroSeguridadCard extends StatelessWidget {
+  final VoidCallback? onTap;
+
+  const _CentroSeguridadCard({this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.warningColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.shield_outlined,
+                  color: AppTheme.warningColor,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Centro de Seguridad',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Protocolos, contactos y recomendaciones para el campus.',
+                style: TextStyle(color: AppTheme.mutedColor, height: 1.35),
+              ),
+              if (onTap != null) ...[
+                const SizedBox(height: 12),
+                const Row(
+                  children: [
+                    Text(
+                      'Consultar guia',
+                      style: TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Spacer(),
+                    Icon(Icons.arrow_forward, color: AppTheme.primaryColor),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

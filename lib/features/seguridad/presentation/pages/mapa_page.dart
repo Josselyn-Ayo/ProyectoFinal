@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/config/theme.dart';
+import '../../../../core/services/routing_service.dart';
 import '../../../../core/widgets/campus_map_widget.dart';
 import '../../../edificio/domain/entities/edificio.dart';
 import '../../../edificio/presentation/providers/edificio_provider.dart';
@@ -22,6 +25,11 @@ class _MapaSeguridadPageState extends State<MapaSeguridadPage> {
   Timer? _refreshTimer;
   IncidenteEntity? _selectedIncidente;
   EdificioEntity? _selectedEdificio;
+  CampusMapMode _mapMode = CampusMapMode.marcadores;
+  List<LatLng> _routePoints = const [];
+  LatLng? _guardLocation;
+  RouteResult? _routeResult;
+  bool _loadingRoute = false;
 
   @override
   void initState() {
@@ -47,12 +55,84 @@ class _MapaSeguridadPageState extends State<MapaSeguridadPage> {
     ]);
   }
 
+  Future<void> _trazarRuta(IncidenteEntity incidente) async {
+    if (incidente.latitud == null || incidente.longitud == null) return;
+    setState(() => _loadingRoute = true);
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw StateError('Activa el servicio de ubicacion para trazar la ruta');
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw StateError(
+          'Se requiere permiso de ubicacion para obtener la ruta',
+        );
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+      final origin = LatLng(position.latitude, position.longitude);
+      final route = await RoutingService().obtenerRuta(
+        origen: origin,
+        destino: LatLng(incidente.latitud!, incidente.longitud!),
+      );
+      if (!mounted) return;
+      setState(() {
+        _guardLocation = origin;
+        _routePoints = route.points;
+        _routeResult = route;
+      });
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error.toString().replaceFirst('Bad state: ', '')),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loadingRoute = false);
+    }
+  }
+
+  void _limpiarRuta() {
+    setState(() {
+      _routePoints = const [];
+      _guardLocation = null;
+      _routeResult = null;
+    });
+  }
+
+  String _formatDistance(double meters) {
+    return meters >= 1000
+        ? '${(meters / 1000).toStringAsFixed(1)} km'
+        : '${meters.round()} m';
+  }
+
+  String _formatDuration(Duration duration) {
+    final minutes = duration.inMinutes;
+    return minutes < 60
+        ? '$minutes min'
+        : '${duration.inHours} h ${minutes.remainder(60)} min';
+  }
+
   @override
   Widget build(BuildContext context) {
     final incidenteProvider = context.watch<IncidenteProvider>();
     final edificioProvider = context.watch<EdificioProvider>();
     final activos = incidenteProvider.incidentesActivos
-        .where((incidente) => incidente.latitud != null && incidente.longitud != null)
+        .where(
+          (incidente) =>
+              incidente.latitud != null && incidente.longitud != null,
+        )
         .toList();
 
     return Stack(
@@ -63,6 +143,9 @@ class _MapaSeguridadPageState extends State<MapaSeguridadPage> {
             child: CampusMapWidget(
               incidentes: activos,
               edificios: edificioProvider.edificios,
+              mode: _mapMode,
+              routePoints: _routePoints,
+              guardLocation: _guardLocation,
               onIncidenteTap: (incidente) {
                 setState(() {
                   _selectedEdificio = null;
@@ -96,16 +179,35 @@ class _MapaSeguridadPageState extends State<MapaSeguridadPage> {
             ),
             child: Row(
               children: [
-                _LegendDot(color: AppTheme.dangerColor, label: 'Incidentes'),
+                _LegendDot(
+                  color: _mapMode == CampusMapMode.calor
+                      ? const Color(0xFFD32F2F)
+                      : AppTheme.dangerColor,
+                  label: _mapMode == CampusMapMode.calor
+                      ? 'Mayor densidad'
+                      : 'Incidentes',
+                ),
                 const SizedBox(width: 16),
                 _LegendDot(color: AppTheme.successColor, label: 'Edificios'),
                 const Spacer(),
-                Text(
-                  '${activos.length} activos',
-                  style: TextStyle(
-                    color: AppTheme.dangerColor,
-                    fontWeight: FontWeight.bold,
+                PopupMenuButton<CampusMapMode>(
+                  tooltip: 'Cambiar visualizacion',
+                  icon: Icon(
+                    _mapMode == CampusMapMode.calor
+                        ? Icons.local_fire_department
+                        : Icons.location_on,
                   ),
+                  onSelected: (mode) => setState(() => _mapMode = mode),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: CampusMapMode.marcadores,
+                      child: Text('Marcadores'),
+                    ),
+                    PopupMenuItem(
+                      value: CampusMapMode.calor,
+                      child: Text('Mapa de calor'),
+                    ),
+                  ],
                 ),
                 IconButton(
                   onPressed: _loadData,
@@ -129,6 +231,30 @@ class _MapaSeguridadPageState extends State<MapaSeguridadPage> {
             left: 16,
             right: 16,
             child: _buildEdificioCard(_selectedEdificio!),
+          ),
+        if (_routeResult != null)
+          Positioned(
+            bottom: _selectedIncidente == null ? 16 : 190,
+            left: 16,
+            right: 16,
+            child: Card(
+              child: ListTile(
+                leading: const Icon(
+                  Icons.directions,
+                  color: AppTheme.secondaryColor,
+                ),
+                title: Text(
+                  '${_formatDistance(_routeResult!.distanceMeters)} - ${_formatDuration(_routeResult!.duration)}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: const Text('Ruta sugerida desde tu ubicacion actual'),
+                trailing: IconButton(
+                  tooltip: 'Ocultar ruta',
+                  icon: const Icon(Icons.close),
+                  onPressed: _limpiarRuta,
+                ),
+              ),
+            ),
           ),
         if (activos.isEmpty && !incidenteProvider.loading)
           const Positioned(
@@ -173,7 +299,8 @@ class _MapaSeguridadPageState extends State<MapaSeguridadPage> {
                 ),
               ],
             ),
-            if (incidente.descripcion != null && incidente.descripcion!.trim().isNotEmpty)
+            if (incidente.descripcion != null &&
+                incidente.descripcion!.trim().isNotEmpty)
               Text(
                 incidente.descripcion!,
                 style: TextStyle(color: Colors.grey[700]),
@@ -213,6 +340,25 @@ class _MapaSeguridadPageState extends State<MapaSeguridadPage> {
                 label: const Text('Aceptar'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _loadingRoute ? null : () => _trazarRuta(incidente),
+                icon: _loadingRoute
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.directions),
+                label: Text(
+                  _loadingRoute
+                      ? 'Calculando ruta...'
+                      : 'Ver ruta hasta el incidente',
                 ),
               ),
             ),
@@ -257,10 +403,7 @@ class _LegendDot extends StatelessWidget {
         Container(
           width: 12,
           height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 4),
         Text(label, style: const TextStyle(fontSize: 13)),

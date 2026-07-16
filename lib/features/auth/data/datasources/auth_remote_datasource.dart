@@ -55,10 +55,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         throw AppAuthException('Error al iniciar sesion');
       }
 
-      await _ensureProfileExists(
-        authUser,
-        fallbackData: {'correo': email},
-      );
+      await _ensureProfileExists(authUser, fallbackData: {'correo': email});
 
       return await getUserById(userId);
     } on AppAuthException {
@@ -131,7 +128,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<UserModel> getUserById(String id) async {
     try {
-      final response = await client.from('usuarios').select().eq('id', id).single();
+      final response = await client
+          .from('usuarios')
+          .select()
+          .eq('id', id)
+          .single();
 
       return UserModel.fromJson(response);
     } on PostgrestException catch (e) {
@@ -157,7 +158,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<void> updateUser(UserModel user) async {
     try {
-      await client.from('usuarios').upsert(user.toJson());
+      // An authenticated user can update their own profile, but cannot insert it.
+      await client
+          .from('usuarios')
+          .update({
+            'nombre': user.nombre,
+            'apellido': user.apellido,
+            'telefono': user.telefono,
+            'facultad': user.facultad,
+            'carrera': user.carrera,
+            'foto': user.foto,
+            'contacto_emergencia': user.contactoEmergencia,
+          })
+          .eq('id', user.id);
     } catch (e) {
       throw ServerException(_extractErrorMessage(e));
     }
@@ -193,10 +206,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<void> updateAdminUser(UserModel user) async {
     await _invokeAdminUsers({
       'action': 'update',
-      'user': {
-        ...user.toJson(),
-        'email': user.correo,
-      },
+      'user': {...user.toJson(), 'email': user.correo},
     });
   }
 
@@ -219,7 +229,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         throw ServerException(response.data['error'].toString());
       }
     } on FunctionException catch (e) {
-      throw ServerException(e.details ?? e.reasonPhrase ?? 'Error al gestionar usuario');
+      throw ServerException(
+        e.details ?? e.reasonPhrase ?? 'Error al gestionar usuario',
+      );
     }
   }
 
@@ -289,7 +301,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       'facultad': fallbackData?['facultad'] ?? metadata['facultad'],
       'carrera': fallbackData?['carrera'] ?? metadata['carrera'],
       'contacto_emergencia':
-          fallbackData?['contacto_emergencia'] ?? metadata['contacto_emergencia'],
+          fallbackData?['contacto_emergencia'] ??
+          metadata['contacto_emergencia'],
     };
   }
 }
